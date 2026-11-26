@@ -582,3 +582,32 @@ main{max-width:1360px;margin:0 auto;padding:28px 24px 56px;min-height:calc(100vh
   .sheet [data-edit]:empty{visibility:hidden}
   .sheet [data-edit]{outline:none!important;background:none!important}
 }
+
+/* icon-only actions (share · save · print) */
+.action-icons{gap:6px;align-items:center;flex-wrap:nowrap;flex:none}
+.act-btn{position:relative;display:inline-grid;place-items:center;width:44px;height:44px;border-radius:12px;border:0;background:var(--fill);color:var(--text);transition:background .15s,color .15s}
+.act-btn .ic{width:20px;height:20px}
+.act-btn:hover,.act-btn.on{background:var(--fill-strong)}
+.act-btn.primary{background:var(--accent);color:#fff}
+.act-btn.primary:hover{background:var(--accent-hover)}
+.act-btn[disabled]{pointer-events:none}
+.act-btn.busy .ic{opacity:.25}
+.act-btn.busy::after{content:"";position:absolute;inset:9px;border-radius:50%;background:conic-gradient(var(--accent) var(--p,8%),transparent 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px))}
+.act-btn[title]:hover::before{content:attr(title);position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);white-space:nowrap;background:#191f28;color:#fff;font-size:12.5px;font-weight:600;padding:5px 9px;border-radius:8px;pointer-events:none;z-index:5}
+.act-btn.on[title]:hover::before{display:none}
+.menu-wrap{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 8px);z-index:20;width:300px;padding:6px;border-radius:16px;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-lg);animation:fade .15s}
+.menu-title{font-size:12.5px;font-weight:700;color:var(--text-3);padding:8px 10px 6px}
+.menu button{display:flex;align-items:center;gap:12px;width:100%;padding:10px;border:0;border-radius:11px;background:none;text-align:left}
+.menu button:hover,.menu button:focus-visible{background:var(--fill)}
+.menu b{display:block;font-size:14.5px;font-weight:700}
+.menu small{display:block;font-size:12.5px;color:var(--text-3);margin-top:1px}
+.menu-ic{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:10px;font-size:10.5px;font-weight:800;letter-spacing:.02em;color:#fff}
+.menu-ic.hwp{background:#1e7bf0}
+.menu-ic.pdf{background:#e5484d}
+@media (max-width:720px){
+  #tab-builder .page-actions.action-icons{width:auto;margin-left:auto}
+  #tab-builder .page-head{flex-wrap:nowrap}
+  .act-btn[title]:hover::before{display:none}
+  .menu{right:-50px}
+}

@@ -727,26 +727,42 @@ sheetEl.addEventListener('mousedown', e => {
   e.preventDefault(); caretToEnd(target);
 });
 
-/* 한글(HWPX) 파일로 저장 */
-$('#hwpxBtn').onclick = async () => {
-  if (!S.basket.length) return toast('먼저 문항을 담아 주세요');
-  const btn = $('#hwpxBtn'), label = btn.innerHTML;
-  btn.disabled = true;
+/* 저장: 한글(.hwpx) 또는 PDF */
+const saveBtn = $('#saveBtn'), saveMenu = $('#saveMenu');
+const setMenu = open => { saveMenu.classList.toggle('hidden', !open); saveBtn.setAttribute('aria-expanded', open); saveBtn.classList.toggle('on', open); };
+saveBtn.onclick = e => { e.stopPropagation(); if (!S.basket.length) return toast('먼저 문항을 담아 주세요'); setMenu(saveMenu.classList.contains('hidden')); };
+document.addEventListener('click', e => { if (!e.target.closest('.menu-wrap')) setMenu(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+function download(blob, name){
+  const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = name;
+  link.style.display = 'none'; document.body.appendChild(link); link.click();
+  setTimeout(() => { URL.revokeObjectURL(link.href); link.parentNode.removeChild(link); }, 4000);
+}
+const fileBase = st => ((st.style === 'csat' ? st.area : st.title) || '시험지').replace(/[\\/:*?"<>|]/g, '').trim() || '시험지';
+let saving = false;
+saveMenu.addEventListener('click', async e => {
+  const b = e.target.closest('[data-save]'); if (!b || saving) return;
+  const kind = b.dataset.save; setMenu(false); saving = true;
+  saveBtn.classList.add('busy'); saveBtn.disabled = true;
+  const st = {...S.settings};
   try {
-    const st = {...S.settings};
     renderSheet();
     await Promise.all($$('#sheet img').map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
-    const blob = await window.makeHwpx({sheet: $('#sheet'), st,
-      onProgress: (i, n) => { btn.innerHTML = `${icon('download')}만드는 중 ${Math.round(i / n * 100)}%`; }});
-    const name = ((st.style === 'csat' ? st.area : st.title) || '시험지').replace(/[\\/:*?"<>|]/g, '').trim() || '시험지';
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = name + '.hwpx';
-    link.style.display = 'none'; document.body.appendChild(link); link.click();
-    setTimeout(() => { URL.revokeObjectURL(link.href); link.parentNode.removeChild(link); }, 4000);
-    toast('한글 파일을 내려받았어요');
+    const progress = (i, n) => { saveBtn.title = `만드는 중 ${Math.round(i / n * 100)}%`; saveBtn.style.setProperty('--p', Math.round(i / n * 100) + '%'); };
+    if (kind === 'hwpx') {
+      const qs = basketQs(), G = geom(st), {pages} = layoutPages(qs, st);
+      const blob = await window.makeHwpx({pages, st, G, PW, PH, imgSrc, srcSheet, unitShort, onProgress: progress});
+      download(blob, fileBase(st) + '.hwpx'); toast('한글 파일을 내려받았어요');
+    } else {
+      const blob = await window.makePdf($('#sheet'), fileBase(st), progress);
+      download(blob, fileBase(st) + '.pdf'); toast('PDF 파일을 내려받았어요');
+    }
   } catch (err) {
-    console.error(err); alert('한글 파일을 만들지 못했어요. 잠시 뒤 다시 시도해 주세요.');
-  } finally { btn.disabled = false; btn.innerHTML = label; }
-};
+    console.error(err); alert('파일을 만들지 못했어요. 잠시 뒤 다시 시도해 주세요.');
+  } finally {
+    saving = false; saveBtn.classList.remove('busy'); saveBtn.disabled = false; saveBtn.title = '파일로 저장'; saveBtn.style.removeProperty('--p');
+  }
+});
 
 /* saved & share */
 function renderSaved(){
