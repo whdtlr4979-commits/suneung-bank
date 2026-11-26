@@ -579,9 +579,9 @@ let sheetTimer;
 function scheduleSheet(){ clearTimeout(sheetTimer); sheetTimer = setTimeout(renderSheet, 120); }
 function geom(st){
   const csat = st.style === 'csat';
-  const simpleHead = 112;
+  const simpleHead = 122;
   return {csat, padX:44, padT: csat ? 34 : 40, padB: csat ? 22 : 32, foot: csat ? 40 : 32,
-    head1: csat ? 118 : simpleHead, headN: csat ? 66 : 0, colGap: csat ? 33 : 29};
+    head1: csat ? 132 : simpleHead, headN: csat ? 66 : 0, colGap: csat ? 33 : 29};
 }
 function layoutPages(qs, st){
   const G = geom(st), cols = +st.cols, innerW = PW - G.padX * 2;
@@ -703,7 +703,29 @@ sheetEl.addEventListener('paste', e => {
   e.preventDefault(); const t = (e.clipboardData || window.clipboardData).getData('text').replace(/\s+/g, ' ');
   document.execCommand('insertText', false, t);
 });
-sheetEl.addEventListener('focusout', e => { if (e.target.closest('[data-edit]')) { S.settings[e.target.dataset.edit] = e.target.textContent.trim(); save(); scheduleSheet(); } });
+sheetEl.addEventListener('focusout', e => {
+  const el = e.target.closest('[data-edit]'); if (!el) return;
+  const v = el.textContent.trim(); S.settings[el.dataset.edit] = v; save();
+  if (el.textContent !== v) el.textContent = v;
+  const inp = document.getElementById(TX[el.dataset.edit]); if (inp) inp.value = v;
+});
+// 제목·부제목 줄의 빈 곳을 눌러도 그 칸에 바로 커서가 가요
+function caretToEnd(el){
+  el.focus();
+  const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+sheetEl.addEventListener('mousedown', e => {
+  if (e.target.closest('[data-edit]')) return;
+  const row = e.target.closest('.c-top, .c-row, .p-head .t'); if (!row) return;
+  let target = row.querySelector('[data-edit]');
+  if (row.matches('.p-head .t')) {
+    const ed = [...row.querySelectorAll('[data-edit]')];
+    target = ed.reduce((best, el) => { const r = el.getBoundingClientRect(), d = Math.abs(e.clientY - (r.top + r.bottom) / 2); return !best || d < best.d ? {el, d} : best; }, null)?.el;
+  }
+  if (!target) return;
+  e.preventDefault(); caretToEnd(target);
+});
 
 /* 한글(HWPX) 파일로 저장 */
 $('#hwpxBtn').onclick = async () => {
@@ -711,10 +733,11 @@ $('#hwpxBtn').onclick = async () => {
   const btn = $('#hwpxBtn'), label = btn.innerHTML;
   btn.disabled = true;
   try {
-    const qs = basketQs(), st = {...S.settings}, G = geom(st);
-    const {pages} = layoutPages(qs, st);
-    const blob = await window.makeHwpx({qs, pages, st, G, PW, PH, labelH: LABEL_H, srcH: st.source ? 16 : 0, gaps: GAPS,
-      imgSrc, srcSheet, unitShort, onProgress: (i, n) => { btn.innerHTML = `${icon('download')}만드는 중 ${i}/${n}`; }});
+    const st = {...S.settings};
+    renderSheet();
+    await Promise.all($$('#sheet img').map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+    const blob = await window.makeHwpx({sheet: $('#sheet'), st,
+      onProgress: (i, n) => { btn.innerHTML = `${icon('download')}만드는 중 ${Math.round(i / n * 100)}%`; }});
     const name = ((st.style === 'csat' ? st.area : st.title) || '시험지').replace(/[\\/:*?"<>|]/g, '').trim() || '시험지';
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = name + '.hwpx';
     link.style.display = 'none'; document.body.appendChild(link); link.click();
