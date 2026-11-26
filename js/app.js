@@ -55,10 +55,12 @@ const imgSrc = q => `img/${q.year}/${q.id}.png`;
 
 /* ---------------- storage ---------------- */
 const KEY = 'qbank.v1';
-const DEF_SETTINGS = {style:'csat', title:'실전 모의고사 문제지', sub:'', time:'', period:'제 2 교시', area:'수학 영역', form:'홀수형', cols:'2', perCol:'2', gap:'m', renum:true, labels:true, source:true, name:true, key:true};
+const DEF_SETTINGS = {style:'csat', title:'실전 모의고사 문제지', sub:'', time:'', area:'수학 모의고사', cols:'2', perCol:'2', gap:'m', renum:true, labels:true, source:true, name:true, key:true};
 let S = {basket:[], fav:{}, status:{}, notes:{}, sets:[], settings:{...DEF_SETTINGS}, prefs:{}};
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch(e) {}
 S.settings = Object.assign({...DEF_SETTINGS}, S.settings || {});
+if (!S.settings.area || S.settings.area === '수학 영역') S.settings.area = DEF_SETTINGS.area;
+delete S.settings.period; delete S.settings.form;
 S.prefs = S.prefs || {};
 S.basket = (S.basket || []).filter(id => byId.has(id));
 let saveTimer;
@@ -543,7 +545,7 @@ $('#autoBtn').onclick = () => {
 
 /* settings */
 const SW = {renum:'sRenum', labels:'sLabels', source:'sSource', name:'sName', key:'sKey'};
-const TX = {title:'sTitle', sub:'sSub', time:'sTime', period:'sPeriod', area:'sArea', form:'sForm'};
+const TX = {title:'sTitle', sub:'sSub', time:'sTime', area:'sArea'};
 const SEGS = {style:'sStyle', cols:'sCols', perCol:'sPer', gap:'sGap'};
 const PER_HELP = {
   '0':'문항 길이에 맞춰 이어서 배치하고, 남는 곳은 풀이 공간으로 나눠요.',
@@ -559,7 +561,6 @@ function renderSettings(){
   for (const [k,id] of Object.entries(SEGS)) $$('#' + id + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === String(st[k])));
   const csat = st.style === 'csat', auto = String(st.perCol) === '0';
   $$('[data-only]').forEach(el => { const o = el.dataset.only; el.classList.toggle('hidden', (o === 'csat' && !csat) || (o === 'simple' && csat) || (o === 'auto' && !auto)); });
-  $('#sTitleLabel').textContent = csat ? '맨 윗줄 제목' : '제목';
   const per = +st.perCol, cols = +st.cols;
   $('#perHelp').textContent = PER_HELP[String(st.perCol)] + (per ? ` (한 쪽에 최대 ${per * cols}문항)` : '');
 }
@@ -638,13 +639,12 @@ function qBlock(it, st){
     ${st.source ? `<div class="srcline">${esc(srcSheet(q))}</div>` : ''}</div>`;
 }
 function csatHead(pn, st){
-  const area = esc(st.area || '수학 영역');
-  const form = st.form ? `<span class="c-form">${esc(st.form)}</span>` : '<span></span>';
+  const area = esc(st.area || '');
   if (pn === 1) return `<div class="c-head c-first">
-      <div class="c-top"><span class="c-name">${st.name ? '성명 <i></i>수험번호 <i class="w"></i>' : ''}</span><span class="c-title">${esc(st.title || '')}</span><span class="c-pn">${pn}</span></div>
-      <div class="c-row"><span>${st.period ? `<span class="c-period">${esc(st.period)}</span>` : ''}</span><span class="c-area big">${area}</span>${form}</div></div>`;
-  const odd = pn % 2 === 1, pnEl = `<span class="c-pn">${pn}</span>`;
-  return `<div class="c-head"><div class="c-row">${odd ? form : pnEl}<span class="c-area">${area}</span>${odd ? pnEl : form}</div></div>`;
+      <div class="c-top"><span class="c-name">${st.name ? '성명 <i></i>' : ''}</span><span></span><span class="c-pn">${pn}</span></div>
+      <div class="c-row"><span></span><span class="c-area big">${area}</span><span></span></div></div>`;
+  const pnEl = `<span class="c-pn">${pn}</span>`;
+  return `<div class="c-head"><div class="c-row">${pn % 2 ? '<span></span>' : pnEl}<span class="c-area">${area}</span>${pn % 2 ? pnEl : '<span></span>'}</div></div>`;
 }
 function renderSheet(){
   const qs = basketQs(), st = S.settings, sheet = $('#sheet'), G = geom(st);
@@ -663,7 +663,7 @@ function renderSheet(){
     let head = '';
     if (G.csat) head = csatHead(pi + 1, st);
     else if (pi === 0 && (st.title || st.sub || st.name)) head = `<div class="p-head"><div class="t"><h1>${esc(st.title || '')}</h1>${st.sub ? `<div class="sub">${esc(st.sub)}</div>` : ''}</div>
-      <div class="meta">${qs.length}문항 · ${total}점${st.time ? ' · ' + esc(st.time) : ''}${st.name ? '<div class="p-name">번호 <span class="s"></span> 성명 <span></span></div>' : ''}</div></div>`;
+      <div class="meta">${qs.length}문항 · ${total}점${st.time ? ' · ' + esc(st.time) : ''}${st.name ? '<div class="p-name">성명 <span></span></div>' : ''}</div></div>`;
     html += `<div class="page-holder"><div class="page${G.csat ? ' csat' : ''}${+st.cols === 1 ? ' one' : ''}" style="${pad}">${head}<div class="p-cont">${p.cols.map(c => `<div class="p-col">${c.map(it => qBlock(it, st)).join('')}</div>`).join('')}</div>${foot(pi + 1)}</div></div>`;
   });
   keyPages.forEach((rows, ki) => {
@@ -682,7 +682,7 @@ $('#printBtn').onclick = async () => {
   if (!S.basket.length) return toast('먼저 문항을 담아 주세요');
   renderSheet();
   await Promise.all($$('#sheet img').map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
-  const old = document.title; document.title = S.settings.title || '시험지';
+  const old = document.title; document.title = (S.settings.style === 'csat' ? S.settings.area : S.settings.title) || '시험지';
   window.print(); document.title = old;
 };
 
