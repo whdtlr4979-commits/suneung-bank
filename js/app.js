@@ -4,22 +4,26 @@ const D = window.QB;
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon = (name, cls='') => `<svg class="ic ${cls}"><use href="#i-${name}"/></svg>`;
+const BOX = '<span class="box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>';
+const nf = n => n.toLocaleString('ko-KR');
 
 /* ---------------- data ---------------- */
-const EXAM_CODE = ['S','6','9'];
 const EXAM_NAME = D.exams;                 // 수능, 6월 모평, 9월 모평
-const EXAM_ORDER = [2,0,1];                // 같은 해 안에서 시행 순서: 6월 → 9월 → 수능
-const TYPE_CODE = ['A','B','ga','na','c','pr','ca','ge'];
+const EXAM_SHORT = ['수능','6월','9월'];
+const EXAM_FULL = ['수능','6월 모의평가','9월 모의평가'];
+const EXAM_ORDER = [2,0,1];                // 한 해 안의 시행 순서: 6월 → 9월 → 수능
 const Q = D.rows.map((r,i) => ({
   i, id:r[0], exam:r[1], year:r[2], type:r[3], num:r[4], score:r[5], unit:r[6],
   w:r[7], h:r[8], nb:[r[9],r[10],r[11],r[12]], text:r[13]
 }));
 const byId = new Map(Q.map(q => [q.id, q]));
-const YEARS = [...new Set(Q.map(q=>q.year))].sort((a,b)=>a-b);
-const MAXW = Math.max(...Q.map(q=>q.w));
+const YEARS = [...new Set(Q.map(q => q.year))].sort((a,b) => a-b);
+const Y0 = YEARS[0], Y1 = YEARS[YEARS.length-1];
+const MAXW = Math.max(...Q.map(q => q.w));
 const UNITS = D.units;
 const UNIT_GROUPS = [
-  ['지수·로그', ['지수와로그','지수함수와로그함수']],
+  ['지수 · 로그', ['지수와로그','지수함수와로그함수']],
   ['삼각함수', ['삼각함수']],
   ['수열', ['수열']],
   ['극한', ['수열의극한','함수의극한과연속']],
@@ -31,23 +35,21 @@ const UNIT_GROUPS = [
   ['이차곡선', ['이차곡선']],
   ['벡터', ['평면벡터','공간벡터']],
   ['공간도형', ['공간도형과공간좌표']],
-  ['행렬 (구 교육과정)', ['행렬','행렬과그래프','일차변환과행렬']],
-  ['집합·함수·방정식', ['집합과명제','함수','방정식과부등식']],
+  ['행렬', ['행렬','행렬과그래프','일차변환과행렬']],
+  ['집합 · 함수 · 방정식', ['집합과명제','함수','방정식과부등식']],
 ].map(([name, us]) => ({name, units: us.map(u => UNITS.indexOf(u))}));
 const UNIT_LABEL = {
   '지수와로그':'지수와 로그','지수함수와로그함수':'지수함수와 로그함수','수열의극한':'수열의 극한',
   '함수의극한과연속':'함수의 극한과 연속','순열과조합':'순열과 조합','경우의수':'경우의 수',
-  '평면벡터':'평면벡터','공간벡터':'공간벡터','공간도형과공간좌표':'공간도형과 공간좌표',
-  '행렬과그래프':'행렬과 그래프','일차변환과행렬':'일차변환과 행렬','집합과명제':'집합과 명제',
-  '방정식과부등식':'방정식과 부등식'
+  '공간도형과공간좌표':'공간도형과 공간좌표','행렬과그래프':'행렬과 그래프','일차변환과행렬':'일차변환과 행렬',
+  '집합과명제':'집합과 명제','방정식과부등식':'방정식과 부등식','미분법':'미분법 (초월함수)','적분법':'적분법 (초월함수)',
+  '미분':'미분 (다항함수)','적분':'적분 (다항함수)'
 };
 const unitName = u => UNIT_LABEL[UNITS[u]] || UNITS[u];
+const unitShort = u => unitName(u).replace(/ \(.+\)$/, '');
 const groupOfUnit = u => UNIT_GROUPS.findIndex(g => g.units.includes(u));
-const TYPE_GROUPS = [
-  ['2013–2015 · A/B형', [0,1]],
-  ['2016–2020 · 가/나형', [2,3]],
-  ['2021– · 공통 + 선택', [4,5,6,7]],
-];
+const TYPE_GROUPS = [['2021년 이후', [4,5,6,7]], ['2016–2020년', [2,3]], ['2013–2015년', [0,1]]];
+const TYPE_NAME = ['수학 A형','수학 B형','가형','나형','공통','확률과 통계','미적분','기하'];
 const isShort = q => q.year <= 2020 ? q.num >= 22 : (q.type === 4 ? q.num >= 16 : q.num >= 29);
 const imgSrc = q => `img/${q.year}/${q.id}.png`;
 
@@ -57,48 +59,63 @@ const DEF_SETTINGS = {title:'수학 영역 실전 모의고사', sub:'', time:''
 let S = {basket:[], fav:{}, status:{}, notes:{}, sets:[], settings:{...DEF_SETTINGS}, prefs:{}};
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch(e) {}
 S.settings = Object.assign({...DEF_SETTINGS}, S.settings || {});
+S.prefs = S.prefs || {};
 S.basket = (S.basket || []).filter(id => byId.has(id));
-let saveTimer = null;
+let saveTimer;
 function save(){ clearTimeout(saveTimer); saveTimer = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e) {} }, 150); }
 
 /* ---------------- labels ---------------- */
 const yearMode = () => S.prefs.yearMode || 'exam';
-const yLabel = y => yearMode() === 'hak' ? `${y+1}학년도` : `${y}`;
-const typeLabel = t => D.types[t];
-function srcShort(q){ return `${yLabel(q.year)} ${EXAM_NAME[q.exam]} · ${typeLabel(q.type)} ${q.num}번`; }
-function srcFull(q){ return `${q.year}년 시행(${q.year+1}학년도) ${EXAM_NAME[q.exam]==='수능'?'대학수학능력시험':EXAM_NAME[q.exam].replace('모평','모의평가')} ${typeLabel(q.type)} ${q.num}번`; }
-function srcSheet(q){ return `${q.year+1}학년도 ${EXAM_NAME[q.exam].replace('모평','모의평가')} ${typeLabel(q.type)} ${q.num}번`; }
+const yLabel = y => yearMode() === 'hak' ? `${y+1}학년도` : `${y}년`;
+const yShort = y => yearMode() === 'hak' ? `${y+1}학년도` : `${y}`;
+const qTitle = q => `${yShort(q.year)} ${EXAM_SHORT[q.exam]} ${q.num}번`;
+const qSub = q => q.type >= 4 ? TYPE_NAME[q.type] : TYPE_NAME[q.type];
+const srcSheet = q => `${q.year+1}학년도 ${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번`;
 
-function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800); }
+function toast(msg){
+  const t = $('#toast'); t.innerHTML = icon('check') + esc(msg); t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1900);
+}
 
 /* ---------------- theme ---------------- */
+const mq = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(){
-  if (S.prefs.theme) document.documentElement.setAttribute('data-theme', S.prefs.theme);
-  else document.documentElement.removeAttribute('data-theme');
+  const t = S.prefs.theme || (mq.matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', t);
+  $('#themeBtn use').setAttribute('href', t === 'dark' ? '#i-sun' : '#i-moon');
+  document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#17171c' : '#ffffff';
 }
+mq.addEventListener('change', () => { if (!S.prefs.theme) applyTheme(); });
 applyTheme();
 $('#themeBtn').onclick = () => {
-  const cur = S.prefs.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  S.prefs.theme = cur === 'dark' ? 'light' : 'dark'; applyTheme(); save();
+  S.prefs.theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; applyTheme(); save();
 };
 
-/* ---------------- tabs ---------------- */
+/* ---------------- navigation ---------------- */
+let current = 'browse';
 function showTab(name){
-  $$('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-  $$('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+  current = name;
+  $$('.nav [data-tab], .tabbar [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'tab-' + name));
   S.prefs.tab = name; save();
   if (name === 'builder') renderBuilder();
   if (name === 'stats') renderStats();
   if (name === 'me') renderMe();
-  window.scrollTo(0, 0);
+  closeSheet();
+  window.scrollTo({top:0});
 }
-$$('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab]'); if (!t) return;
+  e.preventDefault(); showTab(t.dataset.tab);
+});
 
 /* ================= 문제 찾기 ================= */
-const F0 = () => ({q:'', exams:[], yFrom:YEARS[0], yTo:YEARS[YEARS.length-1], scores:[], forms:[], types:[], units:[], nFrom:1, nTo:30, mine:'all'});
+const F0 = () => ({q:'', exams:[], yFrom:Y0, yTo:Y1, scores:[], forms:[], types:[], units:[], nFrom:1, nTo:30, mine:'all'});
 let F = Object.assign(F0(), S.prefs.filters || {});
 let sortMode = S.prefs.sort || 'new';
 let shuffleKey = new Map();
+const reshuffle = () => { shuffleKey = new Map(Q.map(q => [q.id, Math.random()])); };
+if (sortMode === 'random') reshuffle();
 
 function test(q, skip){
   if (skip !== 'exam' && F.exams.length && !F.exams.includes(q.exam)) return false;
@@ -111,9 +128,7 @@ function test(q, skip){
   if (skip !== 'mine' && F.mine !== 'all'){
     const st = S.status[q.id];
     if (F.mine === 'fav' && !S.fav[q.id]) return false;
-    if (F.mine === 'x' && st !== 'x') return false;
-    if (F.mine === 'o' && st !== 'o') return false;
-    if (F.mine === 'r' && st !== 'r') return false;
+    if (['o','x','r'].includes(F.mine) && st !== F.mine) return false;
     if (F.mine === 'none' && st) return false;
     if (F.mine === 'note' && !S.notes[q.id]) return false;
   }
@@ -128,95 +143,130 @@ function countBy(skip, keyFn){
   for (const q of Q) if (test(q, skip)) { const k = keyFn(q); m.set(k, (m.get(k)||0) + 1); }
   return m;
 }
-
-/* -- build filter controls once -- */
-function chip(label, on, onclick, n){
-  const b = document.createElement('button');
-  b.className = 'chip' + (on ? ' on' : '');
-  b.innerHTML = esc(label) + (n !== undefined ? ` <span class="n">${n}</span>` : '');
-  b.onclick = onclick; return b;
-}
 function toggleIn(arr, v){ const i = arr.indexOf(v); if (i >= 0) arr.splice(i,1); else arr.push(v); }
 
-function renderFilters(){
-  // exam
-  const ce = countBy('exam', q => q.exam), fe = $('#f-exam'); fe.innerHTML = '';
-  EXAM_NAME.forEach((n,i) => fe.appendChild(chip(n, F.exams.includes(i), () => { toggleIn(F.exams, i); changed(); }, ce.get(i)||0)));
+/* quick toggles (exam / score) */
+function renderToggles(){
+  const ce = countBy('exam', q => q.exam), cs = countBy('score', q => q.score);
+  const ex = EXAM_FULL.map((n,i) => `<button class="toggle${F.exams.includes(i)?' on':''}" data-exam="${i}" aria-pressed="${F.exams.includes(i)}">${n}<span class="n">${nf(ce.get(i)||0)}</span></button>`).join('');
+  const sc = [2,3,4].map(s => `<button class="toggle${F.scores.includes(s)?' on':''}" data-score="${s}" aria-pressed="${F.scores.includes(s)}">${s}점<span class="n">${nf(cs.get(s)||0)}</span></button>`).join('');
+  $('#qb-exam').innerHTML = ex; $('#mq-exam').innerHTML = ex;
+  $('#qb-score').innerHTML = sc; $('#mq-score').innerHTML = sc;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.toggle'); if (!b) return;
+  if (b.dataset.exam !== undefined) toggleIn(F.exams, +b.dataset.exam);
+  if (b.dataset.score !== undefined) toggleIn(F.scores, +b.dataset.score);
+  changed();
+});
+
+/* sidebar */
+function checkRow(attrs, label, checked, n, extraCls=''){
+  return `<label class="check ${extraCls}${n === 0 && !checked ? ' disabled' : ''}"><input type="checkbox" ${attrs} ${checked ? 'checked' : ''}>${BOX}<span>${esc(label)}</span><span class="n">${n === undefined ? '' : nf(n)}</span></label>`;
+}
+function renderSidebar(){
   // year
-  const yf = $('#yearFrom'), yt = $('#yearTo');
   const opts = YEARS.map(y => `<option value="${y}">${yLabel(y)}</option>`).join('');
-  yf.innerHTML = opts; yt.innerHTML = opts; yf.value = F.yFrom; yt.value = F.yTo;
-  $('#yearMode').value = yearMode();
-  const yq = $('#yearQuick'); yq.innerHTML = '';
-  const last = YEARS[YEARS.length-1];
-  [['전체', YEARS[0], last], ['최근 3년', last-2, last], ['최근 5년', last-4, last], ['2021– 현 체제', 2021, last]].forEach(([n,a,b]) =>
-    yq.appendChild(chip(n, F.yFrom === a && F.yTo === b, () => { F.yFrom = a; F.yTo = b; changed(); })));
-  // score
-  const cs = countBy('score', q => q.score), fs = $('#f-score'); fs.innerHTML = '';
-  [2,3,4].forEach(s => fs.appendChild(chip(s + '점', F.scores.includes(s), () => { toggleIn(F.scores, s); changed(); }, cs.get(s)||0)));
-  // form
-  const cf = countBy('form', q => isShort(q) ? 'sa' : 'mc'), ff = $('#f-form'); ff.innerHTML = '';
-  [['mc','5지선다형'],['sa','단답형']].forEach(([k,n]) => ff.appendChild(chip(n, F.forms.includes(k), () => { toggleIn(F.forms, k); changed(); }, cf.get(k)||0)));
-  // type
-  const ct = countBy('type', q => q.type), ft = $('#f-type'); ft.innerHTML = '';
-  TYPE_GROUPS.forEach(([label, ts]) => {
-    const g = document.createElement('div'); g.className = 'tgroup';
-    g.innerHTML = `<div class="tlabel">${esc(label)}</div>`;
-    const c = document.createElement('div'); c.className = 'chips';
-    ts.forEach(t => c.appendChild(chip(D.types[t], F.types.includes(t), () => { toggleIn(F.types, t); changed(); }, ct.get(t)||0)));
-    g.appendChild(c); ft.appendChild(g);
-  });
+  $('#yearFrom').innerHTML = opts; $('#yearTo').innerHTML = opts;
+  $('#yearFrom').value = F.yFrom; $('#yearTo').value = F.yTo;
+  $$('#yearMode button').forEach(b => b.classList.toggle('on', b.dataset.v === yearMode()));
+  const yp = [['전체', Y0, Y1], ['최근 3년', Y1-2, Y1], ['최근 5년', Y1-4, Y1], ['2021년 이후', 2021, Y1]];
+  $('#yearQuick').innerHTML = yp.map(([n,a,b]) => `<button class="preset${F.yFrom===a && F.yTo===b ? ' on' : ''}" data-y="${a}-${b}">${n}</button>`).join('');
   // units
-  const cu = countBy('unit', q => q.unit), fu = $('#f-unit');
-  const openSet = new Set($$('#f-unit .ugroup.open').map(e => +e.dataset.g));
-  if (!fu.dataset.init) { F.units.forEach(u => openSet.add(groupOfUnit(u))); fu.dataset.init = 1; }
-  fu.innerHTML = '';
-  UNIT_GROUPS.forEach((g, gi) => {
+  const cu = countBy('unit', q => q.unit);
+  const open = new Set(S.prefs.openGroups || []);
+  $('#f-unit').innerHTML = UNIT_GROUPS.map((g, gi) => {
     const total = g.units.reduce((a,u) => a + (cu.get(u)||0), 0);
     const sel = g.units.filter(u => F.units.includes(u)).length;
-    const el = document.createElement('div');
-    el.className = 'ugroup' + (openSet.has(gi) ? ' open' : ''); el.dataset.g = gi;
-    const single = g.units.length === 1;
-    el.innerHTML = `<div class="ugroup-head"><input type="checkbox" ${sel === g.units.length ? 'checked' : ''}>
-      <span>${esc(g.name)}</span><span class="n">${total}</span>${single ? '' : '<span class="caret">▶</span>'}</div>` +
-      (single ? '' : `<div class="ugroup-body">${g.units.map(u =>
-        `<label><input type="checkbox" data-u="${u}" ${F.units.includes(u) ? 'checked' : ''}>${esc(unitName(u))}<span class="n">${cu.get(u)||0}</span></label>`).join('')}</div>`);
-    const cb = el.querySelector('.ugroup-head input');
-    cb.indeterminate = sel > 0 && sel < g.units.length;
-    cb.onclick = e => {
-      e.stopPropagation();
-      if (sel === g.units.length) F.units = F.units.filter(u => !g.units.includes(u));
-      else g.units.forEach(u => { if (!F.units.includes(u)) F.units.push(u); });
-      changed();
-    };
-    el.querySelector('.ugroup-head').onclick = () => { if (single) cb.click(); else el.classList.toggle('open'); };
-    el.querySelectorAll('.ugroup-body input').forEach(i => i.onchange = () => { toggleIn(F.units, +i.dataset.u); changed(); });
-    fu.appendChild(el);
-  });
+    if (g.units.length === 1) return checkRow(`data-u="${g.units[0]}"`, g.name, sel === 1, total);
+    const st = sel === 0 ? '' : sel === g.units.length ? 'on' : 'mixed';
+    return `<div class="ugroup${open.has(gi) ? ' open' : ''}" data-g="${gi}">
+      <div class="row"><label class="check parent grow${total === 0 && !sel ? ' disabled' : ''}" data-gcheck="${gi}"><span class="box ${st}"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><span>${esc(g.name)}</span><span class="n">${nf(total)}</span></label>
+      <button class="caret" data-caret="${gi}" aria-label="${esc(g.name)} 세부 단원 펼치기" aria-expanded="${open.has(gi)}">${icon('down')}</button></div>
+      <div class="ugroup-kids">${g.units.map(u => checkRow(`data-u="${u}"`, unitName(u), F.units.includes(u), cu.get(u)||0)).join('')}</div></div>`;
+  }).join('');
+  // types
+  const ct = countBy('type', q => q.type);
+  $('#f-type').innerHTML = TYPE_GROUPS.map(([label, ts]) => `<div class="sub-label">${label}</div>` +
+    ts.map(t => checkRow(`data-t="${t}"`, TYPE_NAME[t], F.types.includes(t), ct.get(t)||0)).join('')).join('');
+  // form
+  const cf = countBy('form', q => isShort(q) ? 'sa' : 'mc');
+  $('#f-form').innerHTML = [['mc','5지선다형'],['sa','단답형']].map(([k,n]) => checkRow(`data-f="${k}"`, n, F.forms.includes(k), cf.get(k)||0)).join('');
   // num
   $('#numFrom').value = F.nFrom; $('#numTo').value = F.nTo;
+  $('#numQuick').innerHTML = [['전체',1,30],['1–10번',1,10],['11–20번',11,20],['21–30번',21,30]].map(([n,a,b]) =>
+    `<button class="preset${F.nFrom===a && F.nTo===b ? ' on' : ''}" data-n="${a}-${b}">${n}</button>`).join('');
   // mine
-  const fm = $('#f-mine'); fm.innerHTML = '';
-  [['all','전체'],['fav','★ 즐겨찾기'],['x','❌ 틀림'],['r','🔁 다시 보기'],['o','⭕ 맞음'],['none','안 푼 문항'],['note','📝 메모']].forEach(([k,n]) =>
-    fm.appendChild(chip(n, F.mine === k, () => { F.mine = k; changed(); })));
-  $('#q').value = F.q;
-  renderActive();
+  const mineOpts = [['all','전체'],['fav','북마크'],['x','틀림'],['r','다시 보기'],['o','맞음'],['none','안 푼 문항'],['note','메모']];
+  $('#f-mine').innerHTML = `<div class="presets">${mineOpts.map(([k,n]) => `<button class="preset${F.mine===k ? ' on' : ''}" data-m="${k}">${n}</button>`).join('')}</div>`;
+  // section badges
+  const selCount = {year: (F.yFrom !== Y0 || F.yTo !== Y1) ? 1 : 0, unit: F.units.length, type: F.types.length, form: F.forms.length, num: (F.nFrom !== 1 || F.nTo !== 30) ? 1 : 0, mine: F.mine !== 'all' ? 1 : 0};
+  $$('.fsec').forEach(sec => {
+    const k = sec.dataset.sec; const head = sec.querySelector('.fsec-head');
+    let b = head.querySelector('.sel'); if (!b) { b = document.createElement('span'); b.className = 'sel'; head.insertBefore(b, head.lastElementChild); }
+    b.textContent = selCount[k] ? (k === 'unit' || k === 'type' || k === 'form' ? selCount[k] + '개' : '설정됨') : '';
+    sec.classList.toggle('closed', !!(S.prefs.closed || {})[k]);
+  });
+  const adv = Object.values(selCount).reduce((a,b) => a + b, 0) + F.exams.length + F.scores.length;
+  $('#filterBadge').textContent = adv; $('#filterBadge').classList.toggle('hidden', !adv);
 }
+$('#sidebar').addEventListener('click', e => {
+  const head = e.target.closest('.fsec-head');
+  if (head) { const k = head.parentElement.dataset.sec; S.prefs.closed = S.prefs.closed || {}; S.prefs.closed[k] = !S.prefs.closed[k]; head.parentElement.classList.toggle('closed'); save(); return; }
+  const caret = e.target.closest('[data-caret]');
+  if (caret) { const gi = +caret.dataset.caret; const s = new Set(S.prefs.openGroups || []); s.has(gi) ? s.delete(gi) : s.add(gi); S.prefs.openGroups = [...s]; save(); caret.closest('.ugroup').classList.toggle('open'); caret.setAttribute('aria-expanded', s.has(gi)); return; }
+  const gc = e.target.closest('[data-gcheck]');
+  if (gc) { e.preventDefault(); const g = UNIT_GROUPS[+gc.dataset.gcheck]; const all = g.units.every(u => F.units.includes(u));
+    if (all) F.units = F.units.filter(u => !g.units.includes(u)); else g.units.forEach(u => { if (!F.units.includes(u)) F.units.push(u); }); changed(); return; }
+  const p = e.target.closest('.preset');
+  if (p) {
+    if (p.dataset.y) { const [a,b] = p.dataset.y.split('-').map(Number); F.yFrom = a; F.yTo = b; }
+    if (p.dataset.n) { const [a,b] = p.dataset.n.split('-').map(Number); F.nFrom = a; F.nTo = b; }
+    if (p.dataset.m) F.mine = p.dataset.m;
+    changed(); return;
+  }
+  const ym = e.target.closest('#yearMode button');
+  if (ym) { S.prefs.yearMode = ym.dataset.v; save(); changed(); }
+});
+$('#sidebar').addEventListener('change', e => {
+  const i = e.target;
+  if (i.dataset.u !== undefined) toggleIn(F.units, +i.dataset.u);
+  else if (i.dataset.t !== undefined) toggleIn(F.types, +i.dataset.t);
+  else if (i.dataset.f !== undefined) toggleIn(F.forms, i.dataset.f);
+  else if (i.id === 'yearFrom') { F.yFrom = +i.value; if (F.yFrom > F.yTo) F.yTo = F.yFrom; }
+  else if (i.id === 'yearTo') { F.yTo = +i.value; if (F.yTo < F.yFrom) F.yFrom = F.yTo; }
+  else if (i.id === 'numFrom') F.nFrom = Math.max(1, Math.min(30, +i.value || 1));
+  else if (i.id === 'numTo') F.nTo = Math.max(1, Math.min(30, +i.value || 30));
+  else return;
+  changed();
+});
 
-function renderActive(){
-  const box = $('#activeFilters'); box.innerHTML = '';
-  const add = (label, fn) => { const c = chip(label + ' ✕', false, () => { fn(); changed(); }); box.appendChild(c); };
+/* tokens */
+function renderTokens(){
+  const t = [];
+  const add = (label, fn) => t.push([label, fn]);
   if (F.q) add(`“${F.q}”`, () => F.q = '');
-  F.exams.forEach(e => add(EXAM_NAME[e], () => toggleIn(F.exams, e)));
-  if (F.yFrom !== YEARS[0] || F.yTo !== YEARS[YEARS.length-1]) add(`${yLabel(F.yFrom)} ~ ${yLabel(F.yTo)}`, () => { F.yFrom = YEARS[0]; F.yTo = YEARS[YEARS.length-1]; });
+  F.exams.forEach(e => add(EXAM_FULL[e], () => toggleIn(F.exams, e)));
   F.scores.forEach(s => add(s + '점', () => toggleIn(F.scores, s)));
+  if (F.yFrom !== Y0 || F.yTo !== Y1) add(F.yFrom === F.yTo ? yLabel(F.yFrom) : `${yShort(F.yFrom)}–${yShort(F.yTo)}`, () => { F.yFrom = Y0; F.yTo = Y1; });
+  UNIT_GROUPS.forEach(g => {
+    const sel = g.units.filter(u => F.units.includes(u));
+    if (sel.length && sel.length === g.units.length) add(g.name, () => F.units = F.units.filter(u => !g.units.includes(u)));
+    else sel.forEach(u => add(unitShort(u), () => toggleIn(F.units, u)));
+  });
+  F.types.forEach(x => add(TYPE_NAME[x], () => toggleIn(F.types, x)));
   F.forms.forEach(f => add(f === 'sa' ? '단답형' : '5지선다형', () => toggleIn(F.forms, f)));
-  F.types.forEach(t => add(D.types[t], () => toggleIn(F.types, t)));
-  F.units.forEach(u => add(unitName(u), () => toggleIn(F.units, u)));
-  if (F.nFrom !== 1 || F.nTo !== 30) add(`${F.nFrom}~${F.nTo}번`, () => { F.nFrom = 1; F.nTo = 30; });
-  if (F.mine !== 'all') add({fav:'즐겨찾기',x:'틀린 문항',r:'다시 볼 문항',o:'맞은 문항',none:'안 푼 문항',note:'메모 있는 문항'}[F.mine], () => F.mine = 'all');
+  if (F.nFrom !== 1 || F.nTo !== 30) add(`${F.nFrom}–${F.nTo}번`, () => { F.nFrom = 1; F.nTo = 30; });
+  if (F.mine !== 'all') add({fav:'북마크',x:'틀린 문항',r:'다시 볼 문항',o:'맞은 문항',none:'안 푼 문항',note:'메모한 문항'}[F.mine], () => F.mine = 'all');
+  tokenFns = t.map(x => x[1]);
+  $('#tokens').innerHTML = t.map(([l], i) => `<button class="token" data-k="${i}">${esc(l)}${icon('x')}</button>`).join('') +
+    (t.length > 1 ? `<button class="token token-clear" data-reset>모두 지우기</button>` : '');
 }
+let tokenFns = [];
+$('#tokens').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) { tokenFns[+b.dataset.k](); changed(); } });
+document.addEventListener('click', e => { if (e.target.closest('[data-reset]')) { F = F0(); changed(); } });
 
+/* results */
 let results = [], shown = 0;
 const PAGE = 36;
 function sortList(list){
@@ -233,236 +283,280 @@ function sortList(list){
 }
 function changed(){
   S.prefs.filters = F; save();
-  renderFilters();
+  renderToggles(); renderSidebar(); renderTokens();
   results = sortList(Q.filter(q => test(q)));
-  $('#resultCount').textContent = results.length.toLocaleString();
+  $('#resultCount').textContent = nf(results.length);
+  $('#applyFilters').textContent = `${nf(results.length)}문항 보기`;
   $('#empty').classList.toggle('hidden', results.length > 0);
   $('#grid').innerHTML = ''; shown = 0; renderMore();
+  if ($('#q').value.trim() !== F.q) $('#q').value = F.q;
 }
 function cardHTML(q){
-  const st = S.status[q.id];
-  const inB = S.basket.includes(q.id);
-  return `<div class="card${inB ? ' in' : ''}" data-id="${q.id}">
-    <div class="card-head"><span class="src">${esc(srcShort(q))}</span>
-      <span class="badge s${q.score}">${q.score}점</span><span class="unit-tag">${esc(unitName(q.unit))}</span>
-      <span class="status-dot">${st === 'o' ? '⭕' : st === 'x' ? '❌' : st === 'r' ? '🔁' : ''}${S.notes[q.id] ? '📝' : ''}</span></div>
-    <div class="thumb${q.h / q.w > 0.75 ? ' clip' : ''}" data-act="open"><img loading="lazy" src="${imgSrc(q)}" alt="${esc(srcShort(q))}" width="${q.w}" height="${q.h}"></div>
-    <div class="card-foot">
-      <button class="btn add" data-act="add">${inB ? '✓ 담김' : '＋ 담기'}</button>
-      <button class="btn fav-btn${S.fav[q.id] ? ' on' : ''}" data-act="fav" title="즐겨찾기">★</button>
-      <button class="btn" data-act="open" title="크게 보기">⤢</button>
-    </div></div>`;
+  const st = S.status[q.id], inB = S.basket.includes(q.id), fav = !!S.fav[q.id];
+  const ratio = q.h / q.w;
+  return `<article class="qcard${inB ? ' in' : ''}" data-id="${q.id}" tabindex="0" aria-label="${esc(qTitle(q))} ${esc(unitShort(q.unit))} ${q.score}점">
+    <div class="qmedia${ratio < 0.62 ? ' short' : ''}">
+      <img loading="lazy" decoding="async" src="${imgSrc(q)}" alt="" width="${q.w}" height="${q.h}">
+      <button class="qadd" data-act="add" aria-label="${inB ? '시험지에서 빼기' : '시험지에 담기'}" title="${inB ? '시험지에서 빼기' : '시험지에 담기'}">${icon(inB ? 'check' : 'plus')}</button>
+    </div>
+    <div class="qinfo">
+      <div class="qtext">
+        <div class="qtitle">${st ? `<i class="dot dot-${st}" title="${{o:'맞음',x:'틀림',r:'다시 보기'}[st]}"></i>` : ''}${esc(qTitle(q))}${S.notes[q.id] ? `<span class="qnote" title="메모 있음">${icon('pencil')}</span>` : ''}</div>
+        <div class="qmeta"><span class="tag tag-s${q.score}">${q.score}점</span><span class="u">${esc(unitShort(q.unit))} · ${esc(TYPE_NAME[q.type])}</span></div>
+      </div>
+      <button class="qmark${fav ? ' on' : ''}" data-act="fav" aria-label="북마크" aria-pressed="${fav}">${icon('bookmark')}</button>
+    </div></article>`;
 }
 function renderMore(){
   const slice = results.slice(shown, shown + PAGE);
   $('#grid').insertAdjacentHTML('beforeend', slice.map(cardHTML).join(''));
   shown += slice.length;
-  $('#more').innerHTML = shown < results.length ? `<button class="btn" id="moreBtn">더 보기 (${(results.length - shown).toLocaleString()}문항 남음)</button>` : '';
-  const mb = $('#moreBtn'); if (mb) mb.onclick = renderMore;
+  $('#more').innerHTML = shown < results.length ? `<button class="btn btn-secondary" id="moreBtn">더 보기 <span class="muted">${nf(results.length - shown)}</span></button>` : '';
 }
-const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting) && shown < results.length && $('#tab-browse').classList.contains('active')) renderMore(); }, {rootMargin:'600px'});
+$('#more').addEventListener('click', e => { if (e.target.closest('#moreBtn')) renderMore(); });
+const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting) && shown < results.length && current === 'browse') renderMore(); }, {rootMargin:'800px'});
 io.observe($('#more'));
-
 $('#grid').addEventListener('click', e => {
-  const act = e.target.closest('[data-act]'); if (!act) return;
-  const card = e.target.closest('.card'); const id = card.dataset.id;
-  if (act.dataset.act === 'add') toggleBasket(id);
-  else if (act.dataset.act === 'fav') toggleFav(id);
-  else if (act.dataset.act === 'open') openModal(results.findIndex(q => q.id === id));
+  const card = e.target.closest('.qcard'); if (!card) return;
+  const act = e.target.closest('[data-act]'), id = card.dataset.id;
+  if (act && act.dataset.act === 'add') return toggleBasket(id);
+  if (act && act.dataset.act === 'fav') return toggleFav(id);
+  openViewer(results.findIndex(q => q.id === id));
 });
-function refreshCard(id){
-  const c = document.querySelector(`.card[data-id="${id}"]`);
-  if (c) c.outerHTML = cardHTML(byId.get(id));
-}
+$('#grid').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('qcard')) openViewer(results.findIndex(q => q.id === e.target.dataset.id)); });
+function refreshCard(id){ const c = document.querySelector(`.qcard[data-id="${id}"]`); if (c) c.outerHTML = cardHTML(byId.get(id)); }
 
-/* filter inputs */
+/* toolbar */
 let qTimer;
 $('#q').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { F.q = e.target.value.trim(); changed(); }, 250); });
-$('#yearFrom').onchange = e => { F.yFrom = +e.target.value; if (F.yFrom > F.yTo) F.yTo = F.yFrom; changed(); };
-$('#yearTo').onchange = e => { F.yTo = +e.target.value; if (F.yTo < F.yFrom) F.yFrom = F.yTo; changed(); };
-$('#yearMode').onchange = e => { S.prefs.yearMode = e.target.value; save(); changed(); };
-$('#numFrom').onchange = e => { F.nFrom = Math.max(1, Math.min(30, +e.target.value || 1)); changed(); };
-$('#numTo').onchange = e => { F.nTo = Math.max(1, Math.min(30, +e.target.value || 30)); changed(); };
-$('#resetFilters').onclick = () => { F = F0(); changed(); };
-$('#sort').value = sortMode;
-$('#sort').onchange = e => {
-  sortMode = e.target.value; S.prefs.sort = sortMode; save();
-  if (sortMode === 'random') { shuffleKey = new Map(Q.map(q => [q.id, Math.random()])); }
-  changed();
-};
-if (sortMode === 'random') shuffleKey = new Map(Q.map(q => [q.id, Math.random()]));
-$$('#sizeSeg button').forEach(b => {
-  b.classList.toggle('active', b.dataset.size === (S.prefs.size || 'm'));
-  b.onclick = () => {
-    S.prefs.size = b.dataset.size; save();
-    $$('#sizeSeg button').forEach(x => x.classList.toggle('active', x === b));
-    $('#grid').className = 'grid size-' + b.dataset.size;
-  };
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && current === 'browse' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && $('#viewer').classList.contains('hidden')) { e.preventDefault(); $('#q').focus(); }
 });
-$('#grid').className = 'grid size-' + (S.prefs.size || 'm');
+$('#sort').value = sortMode;
+$('#sort').onchange = e => { sortMode = e.target.value; S.prefs.sort = sortMode; save(); if (sortMode === 'random') reshuffle(); changed(); };
+function applyView(){
+  const v = S.prefs.view || 'grid';
+  $$('#viewSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('#grid').classList.toggle('rows', v === 'rows');
+}
+$('#viewSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.prefs.view = b.dataset.v; save(); applyView(); };
+applyView();
 $('#addAllBtn').onclick = () => {
   const add = results.filter(q => !S.basket.includes(q.id));
-  if (!add.length) return toast('이미 모두 담겨 있습니다');
-  if (add.length > 60 && !confirm(`${add.length}문항을 모두 담을까요?`)) return;
+  if (!add.length) return toast('이미 모두 담겨 있어요');
+  if (add.length > 60 && !confirm(`${nf(add.length)}문항을 모두 시험지에 담을까요?`)) return;
   add.forEach(q => S.basket.push(q.id)); basketChanged(); changed();
-  toast(`${add.length}문항을 담았습니다`);
+  toast(`${nf(add.length)}문항을 담았어요`);
 };
-$('#openFilters').onclick = () => $('#filters').classList.add('open');
-$('#closeFilters').onclick = () => $('#filters').classList.remove('open');
 
-/* basket & fav */
+/* mobile filter sheet */
+function openSheet(){ $('#sidebar').classList.add('open'); $('#scrim').classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+function closeSheet(){ $('#sidebar').classList.remove('open'); if ($('#viewer').classList.contains('hidden')) { $('#scrim').classList.add('hidden'); document.body.style.overflow = ''; } }
+$('#openFilters').onclick = openSheet;
+$('#closeFilters').onclick = closeSheet;
+$('#applyFilters').onclick = closeSheet;
+$('#resetFiltersM').onclick = () => { F = F0(); changed(); };
+$('#scrim').onclick = closeSheet;
+
+/* basket & bookmark */
 function toggleBasket(id){
   const i = S.basket.indexOf(id);
-  if (i >= 0) { S.basket.splice(i, 1); toast('시험지에서 뺐습니다'); }
-  else { S.basket.push(id); toast(`시험지에 담았습니다 (${S.basket.length}문항)`); }
-  basketChanged(); refreshCard(id); if (modalIdx >= 0) renderModal();
+  if (i >= 0) { S.basket.splice(i, 1); toast('시험지에서 뺐어요'); }
+  else { S.basket.push(id); toast(`시험지에 담았어요 · ${S.basket.length}문항`); }
+  basketChanged(true); refreshCard(id); if (vIdx >= 0) renderViewer();
 }
 function toggleFav(id){
-  if (S.fav[id]) delete S.fav[id]; else S.fav[id] = 1;
-  save(); refreshCard(id); if (modalIdx >= 0) renderModal();
+  if (S.fav[id]) { delete S.fav[id]; toast('북마크를 해제했어요'); } else { S.fav[id] = 1; toast('북마크했어요'); }
+  save(); refreshCard(id); if (vIdx >= 0) renderViewer();
 }
-function basketChanged(){
-  $('#basketCount').textContent = S.basket.length; save();
-  if ($('#tab-builder').classList.contains('active')) renderBuilder();
+function basketChanged(bump){
+  $$('[data-basket-count]').forEach(el => {
+    el.textContent = S.basket.length; el.classList.toggle('zero', !S.basket.length);
+    if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  });
+  save();
+  if (current === 'builder') renderBuilder();
 }
 
-/* ---------------- modal ---------------- */
-let modalIdx = -1, modalList = null;
-function openModal(i, list){ modalList = list || results; modalIdx = i; if (i < 0) return; renderModal(); $('#modal').classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
-function closeModal(){ $('#modal').classList.add('hidden'); modalIdx = -1; document.body.style.overflow = ''; }
-function renderModal(){
-  const q = modalList[modalIdx]; if (!q) return;
-  $('#mTitle').innerHTML = `<span>${esc(srcFull(q))}</span><span class="badge s${q.score}">${q.score}점</span><span class="unit-tag">${esc(unitName(q.unit))}</span><span class="muted small">${modalIdx + 1} / ${modalList.length}</span>`;
-  $('#mImg').src = imgSrc(q); $('#mImg').alt = srcFull(q);
-  const inB = S.basket.includes(q.id);
-  $('#mAdd').textContent = inB ? '✓ 시험지에 담김 (빼기)' : '＋ 시험지에 담기';
-  $('#mFav').textContent = S.fav[q.id] ? '★ 즐겨찾기됨' : '☆ 즐겨찾기';
-  $('#mFav').classList.toggle('on', !!S.fav[q.id]);
-  $$('#mStatus button').forEach(b => b.classList.toggle('on', S.status[q.id] === b.dataset.s));
-  $('#mDown').href = imgSrc(q);
-  $('#mDown').download = `${q.year}년 ${EXAM_NAME[q.exam]} ${typeLabel(q.type)} ${String(q.num).padStart(2,'0')}번 (${q.score}점, ${UNITS[q.unit]}).png`;
-  $('#mNote').value = S.notes[q.id] || '';
-  $('#mPrev').disabled = modalIdx <= 0; $('#mNext').disabled = modalIdx >= modalList.length - 1;
+/* ---------------- viewer ---------------- */
+let vIdx = -1, vList = [];
+function openViewer(i, list){
+  vList = list || results; vIdx = i; if (i < 0) return;
+  renderViewer(); $('#viewer').classList.remove('hidden'); document.body.style.overflow = 'hidden';
+  setTimeout(() => $('#vClose').focus(), 30);
 }
-$('#mClose').onclick = closeModal;
-$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
-$('#mPrev').onclick = () => { if (modalIdx > 0) { modalIdx--; renderModal(); } };
-$('#mNext').onclick = () => { if (modalIdx < modalList.length - 1) { modalIdx++; renderModal(); } };
-$('#mAdd').onclick = () => toggleBasket(modalList[modalIdx].id);
-$('#mFav').onclick = () => toggleFav(modalList[modalIdx].id);
-$$('#mStatus button').forEach(b => b.onclick = () => {
-  const id = modalList[modalIdx].id;
+function closeViewer(){ $('#viewer').classList.add('hidden'); vIdx = -1; document.body.style.overflow = ''; }
+function renderViewer(){
+  const q = vList[vIdx]; if (!q) return;
+  $('#vCount').textContent = `${nf(vIdx + 1)} / ${nf(vList.length)}`;
+  $('#vEyebrow').textContent = `${q.year}년 시행 · ${q.year + 1}학년도`;
+  $('#vTitle').textContent = `${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번`;
+  $('#vTags').innerHTML = `<span class="tag tag-s${q.score}">${q.score}점</span><span class="tag tag-gray">${esc(unitName(q.unit))}</span><span class="tag tag-gray">${isShort(q) ? '단답형' : '5지선다형'}</span>`;
+  $('#vImg').src = imgSrc(q); $('#vImg').alt = `${q.year + 1}학년도 ${EXAM_FULL[q.exam]} ${q.num}번 문제`;
+  const inB = S.basket.includes(q.id);
+  $('#vAdd').innerHTML = inB ? icon('check') + '시험지에 담겨 있어요' : icon('plus') + '시험지에 담기';
+  $('#vAdd').classList.toggle('added', inB);
+  $('#vFav').classList.toggle('on', !!S.fav[q.id]);
+  $('#vFav span').textContent = S.fav[q.id] ? '북마크됨' : '북마크';
+  $$('#vStatus button').forEach(b => b.classList.toggle('on', S.status[q.id] === b.dataset.s));
+  $('#vDown').href = imgSrc(q);
+  $('#vDown').download = `${q.year + 1}학년도 ${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번 (${q.score}점, ${UNITS[q.unit]}).png`;
+  $('#vNote').value = S.notes[q.id] || '';
+  $('#vPrev').disabled = vIdx <= 0; $('#vNext').disabled = vIdx >= vList.length - 1;
+  $('.viewer-stage').scrollTop = 0;
+}
+$('#vClose').onclick = closeViewer;
+$('#viewer').addEventListener('click', e => { if (e.target.id === 'viewer') closeViewer(); });
+$('#vPrev').onclick = () => { if (vIdx > 0) { vIdx--; renderViewer(); } };
+$('#vNext').onclick = () => { if (vIdx < vList.length - 1) { vIdx++; renderViewer(); } };
+$('#vAdd').onclick = () => toggleBasket(vList[vIdx].id);
+$('#vFav').onclick = () => toggleFav(vList[vIdx].id);
+$('#vStatus').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return; const id = vList[vIdx].id;
   if (S.status[id] === b.dataset.s) delete S.status[id]; else S.status[id] = b.dataset.s;
-  save(); renderModal(); refreshCard(id);
-});
-$('#mNote').addEventListener('input', e => {
-  const id = modalList[modalIdx].id; const v = e.target.value;
-  if (v.trim()) S.notes[id] = v; else delete S.notes[id];
-  save(); clearTimeout(qTimer); qTimer = setTimeout(() => refreshCard(id), 400);
-});
-$('#mSame').onclick = () => {
-  const q = modalList[modalIdx]; closeModal();
-  F = F0(); F.units = [q.unit]; showTab('browse'); changed();
+  save(); renderViewer(); refreshCard(id);
 };
+let noteTimer;
+$('#vNote').addEventListener('input', e => {
+  const id = vList[vIdx].id, v = e.target.value;
+  if (v.trim()) S.notes[id] = v; else delete S.notes[id];
+  save(); clearTimeout(noteTimer); noteTimer = setTimeout(() => refreshCard(id), 400);
+});
+$('#vSame').onclick = () => { const q = vList[vIdx]; closeViewer(); F = F0(); F.units = [q.unit]; showTab('browse'); changed(); };
 document.addEventListener('keydown', e => {
-  if (modalIdx < 0 || e.target.tagName === 'TEXTAREA') { if (e.key === 'Escape' && modalIdx >= 0) closeModal(); return; }
-  if (e.key === 'Escape') closeModal();
-  else if (e.key === 'ArrowLeft') $('#mPrev').click();
-  else if (e.key === 'ArrowRight') $('#mNext').click();
-  else if (e.key === 'a' || e.key === 'A') $('#mAdd').click();
+  if (vIdx < 0) return;
+  if (e.key === 'Escape') return closeViewer();
+  if (e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowLeft') $('#vPrev').click();
+  else if (e.key === 'ArrowRight') $('#vNext').click();
+  else if (e.key.toLowerCase() === 'a') $('#vAdd').click();
+  else if (e.key.toLowerCase() === 'b') $('#vFav').click();
 });
 
 /* ================= 시험지 만들기 ================= */
-function basketQs(){ return S.basket.map(id => byId.get(id)).filter(Boolean); }
+const basketQs = () => S.basket.map(id => byId.get(id)).filter(Boolean);
+let bTab = S.prefs.bTab || 'items';
+function setBTab(v){
+  bTab = v; S.prefs.bTab = v; save();
+  $$('#bTabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $$('.bpane').forEach(p => p.classList.toggle('on', p.dataset.pane === v));
+  if (v === 'auto') renderAuto();
+}
+$('#bTabs').onclick = e => { const b = e.target.closest('button'); if (b) setBTab(b.dataset.v); };
+document.addEventListener('click', e => { const b = e.target.closest('[data-btab]'); if (b) setBTab(b.dataset.btab); });
+
 function renderBuilder(){
   const qs = basketQs();
-  $('#bEmpty').classList.toggle('hidden', qs.length > 0);
+  setBTab(bTab);
   const total = qs.reduce((a,q) => a + q.score, 0);
-  $('#bSummary').textContent = qs.length ? `${qs.length}문항 · 총 ${total}점` : '';
-  const sc = [2,3,4].map(s => [s, qs.filter(q => q.score === s).length]).filter(x => x[1]);
-  const gc = new Map(); qs.forEach(q => { const g = UNIT_GROUPS[groupOfUnit(q.unit)].name; gc.set(g, (gc.get(g)||0) + 1); });
-  $('#bDist').innerHTML = sc.map(([s,n]) => `<span>${s}점 ${n}</span>`).join('') + [...gc].map(([g,n]) => `<span>${esc(g)} ${n}</span>`).join('');
-  $('#bList').innerHTML = qs.map((q,i) => `<li draggable="true" data-i="${i}">
-      <span class="no">${i+1}</span>
+  const n = [2,3,4].map(s => qs.filter(q => q.score === s).length);
+  const pages = qs.length ? layoutPages(qs, S.settings).pages.length : 0;
+  $('#bDesc').textContent = qs.length ? `${qs.length}문항 · 총 ${total}점으로 A4 시험지를 만들어요.` : '담은 문항으로 A4 시험지를 만들어 인쇄하거나 PDF로 저장해요.';
+  $('#bSum').innerHTML = qs.length ? `<div><span>문항</span><b>${qs.length}</b></div><div><span>총점</span><b>${total}</b></div><div><span>문제 쪽수</span><b>${pages}</b></div>
+    <div class="bar3" title="2점 ${n[0]} · 3점 ${n[1]} · 4점 ${n[2]}">${n.map((c,i) => c ? `<i style="width:${c/qs.length*100}%;background:var(--s${i+2})"></i>` : '').join('')}</div>` : '';
+  $('#bSum').classList.toggle('hidden', !qs.length);
+  $('#bListTools').classList.toggle('hidden', !qs.length);
+  $('#bEmpty').classList.toggle('hidden', qs.length > 0);
+  $('#bList').innerHTML = qs.map((q,i) => `<li class="bitem" draggable="true" data-i="${i}">
+      <span class="bgrip" title="끌어서 순서 바꾸기">${icon('grip')}</span>
+      <span class="bno">${i + 1}</span>
       <span class="bthumb"><img src="${imgSrc(q)}" alt="" loading="lazy"></span>
-      <span class="meta">${esc(srcShort(q))} <span class="badge s${q.score}">${q.score}점</span><br><span class="u">${esc(unitName(q.unit))}</span></span>
-      <span class="ctrl"><button data-a="view" title="크게 보기">⤢</button><button data-a="up" title="위로">▲</button><button data-a="down" title="아래로">▼</button><button data-a="del" title="빼기">✕</button></span>
+      <span class="btext" data-a="view"><span class="t">${esc(qTitle(q))}</span><span class="m"><span class="tag tag-s${q.score}">${q.score}점</span>${esc(unitShort(q.unit))}</span></span>
+      <span class="bctrl"><button class="icon-btn" data-a="up" aria-label="위로">${icon('up')}</button><button class="icon-btn" data-a="down" aria-label="아래로">${icon('down')}</button><button class="icon-btn" data-a="del" aria-label="빼기">${icon('x')}</button></span>
     </li>`).join('');
   renderSettings(); renderSaved(); scheduleSheet();
 }
 $('#bList').addEventListener('click', e => {
-  const b = e.target.closest('button[data-a]'); if (!b) return;
+  const b = e.target.closest('[data-a]'); if (!b) return;
   const i = +b.closest('li').dataset.i, a = b.dataset.a;
-  if (a === 'view') return openModal(i, basketQs());
+  if (a === 'view') return openViewer(i, basketQs());
   if (a === 'del') S.basket.splice(i, 1);
   if (a === 'up' && i > 0) [S.basket[i-1], S.basket[i]] = [S.basket[i], S.basket[i-1]];
   if (a === 'down' && i < S.basket.length - 1) [S.basket[i+1], S.basket[i]] = [S.basket[i], S.basket[i+1]];
-  basketChanged(); renderBuilder();
+  basketChanged();
 });
 let dragI = -1;
 $('#bList').addEventListener('dragstart', e => { const li = e.target.closest('li'); if (!li) return; dragI = +li.dataset.i; li.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
-$('#bList').addEventListener('dragend', e => { $$('#bList li').forEach(l => l.classList.remove('drag','over')); });
+$('#bList').addEventListener('dragend', () => $$('#bList li').forEach(l => l.classList.remove('drag','over')));
 $('#bList').addEventListener('dragover', e => { e.preventDefault(); const li = e.target.closest('li'); $$('#bList li').forEach(l => l.classList.toggle('over', l === li)); });
 $('#bList').addEventListener('drop', e => {
   e.preventDefault(); const li = e.target.closest('li'); if (!li || dragI < 0) return;
-  const to = +li.dataset.i; const [m] = S.basket.splice(dragI, 1); S.basket.splice(to, 0, m); dragI = -1;
-  basketChanged(); renderBuilder();
+  const to = +li.dataset.i; const [m] = S.basket.splice(dragI, 1); S.basket.splice(to, 0, m); dragI = -1; basketChanged();
 });
+function shuffle(a){ for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 $('#bSort').onchange = e => {
   const v = e.target.value; e.target.value = ''; if (!v) return;
-  const qs = basketQs();
-  const ex = q => EXAM_ORDER[q.exam];
+  const qs = basketQs(), ex = q => EXAM_ORDER[q.exam];
   if (v === 'score') qs.sort((a,b) => a.score - b.score || a.num - b.num);
   if (v === 'unit') qs.sort((a,b) => a.unit - b.unit || a.score - b.score);
   if (v === 'year') qs.sort((a,b) => a.year - b.year || ex(a) - ex(b) || a.num - b.num);
-  if (v === 'orig') qs.sort((a,b) => (a.type >= 5) - (b.type >= 5) || a.num - b.num || a.year - b.year);
-  if (v === 'shuffle') for (let i = qs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [qs[i], qs[j]] = [qs[j], qs[i]]; }
-  S.basket = qs.map(q => q.id); basketChanged(); renderBuilder();
+  if (v === 'shuffle') shuffle(qs);
+  S.basket = qs.map(q => q.id); basketChanged(); toast('순서를 바꿨어요');
 };
-$('#bClear').onclick = () => { if (S.basket.length && confirm('담은 문항을 모두 비울까요?')) { S.basket = []; basketChanged(); renderBuilder(); changed(); } };
+$('#bClear').onclick = () => { if (S.basket.length && confirm('담은 문항을 모두 뺄까요?')) { S.basket = []; basketChanged(); changed(); } };
 
 /* 자동 출제 */
-function shuffle(a){ for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function scopeText(){
+  const parts = [];
+  if (F.exams.length) parts.push(F.exams.map(e => EXAM_FULL[e]).join(', '));
+  if (F.yFrom !== Y0 || F.yTo !== Y1) parts.push(`${yShort(F.yFrom)}–${yShort(F.yTo)}`);
+  if (F.units.length) parts.push(F.units.length > 3 ? `단원 ${F.units.length}개` : F.units.map(unitShort).join(', '));
+  if (F.types.length) parts.push(F.types.map(t => TYPE_NAME[t]).join(', '));
+  if (F.forms.length) parts.push(F.forms.map(f => f === 'sa' ? '단답형' : '5지선다형').join(', '));
+  if (F.nFrom !== 1 || F.nTo !== 30) parts.push(`${F.nFrom}–${F.nTo}번`);
+  if (F.q) parts.push(`“${F.q}”`);
+  if (F.mine !== 'all') parts.push({fav:'북마크',x:'틀린 문항',r:'다시 볼 문항',o:'맞은 문항',none:'안 푼 문항',note:'메모한 문항'}[F.mine]);
+  return parts.length ? parts.join(' · ') : '전체 문항';
+}
+function renderAuto(){
+  const pool = Q.filter(q => test(q, 'score') && !S.basket.includes(q.id));
+  $('#autoScope').innerHTML = `<div class="k"><span>뽑을 범위</span><button class="link" data-tab="browse">조건 바꾸기 ${icon('right')}</button></div><div class="v">${esc(scopeText())} · 뽑을 수 있는 문항 ${nf(pool.length)}개</div>`;
+  const a = [2,3,4].map(s => +$('#a' + s).value || 0);
+  const pts = a[0]*2 + a[1]*3 + a[2]*4, cnt = a[0] + a[1] + a[2];
+  $('#autoTotal').innerHTML = `모두 <b>${cnt}문항 · ${pts}점</b>`;
+}
+$$('.stepper').forEach(st => st.addEventListener('click', e => {
+  const b = e.target.closest('[data-d]'); if (!b) return;
+  const inp = st.querySelector('input'); inp.value = Math.max(0, Math.min(40, (+inp.value || 0) + +b.dataset.d)); renderAuto();
+}));
+$$('.stepper input').forEach(i => i.addEventListener('input', renderAuto));
 $('#autoBtn').onclick = () => {
-  const pool = Q.filter(q => test(q) && !S.basket.includes(q.id));
+  const pool = Q.filter(q => test(q, 'score') && !S.basket.includes(q.id));
   const want = {2:+$('#a2').value||0, 3:+$('#a3').value||0, 4:+$('#a4').value||0};
-  const spread = $('#aSpread').checked;
-  const picked = [], short = [];
+  const spread = $('#aSpread').checked, picked = [], short = [];
   [2,3,4].forEach(s => {
-    const cand = shuffle(pool.filter(q => q.score === s)); let n = want[s];
-    if (!n) return;
-    if (spread){
+    const n = want[s]; if (!n) return;
+    const cand = shuffle(pool.filter(q => q.score === s));
+    if (spread) {
       const by = new Map(); cand.forEach(q => { if (!by.has(q.unit)) by.set(q.unit, []); by.get(q.unit).push(q); });
       const keys = shuffle([...by.keys()]); let k = 0, got = 0;
-      while (got < n && keys.some(u => by.get(u).length)) { const u = keys[k++ % keys.length]; const arr = by.get(u); if (arr.length) { picked.push(arr.pop()); got++; } }
+      while (got < n && keys.some(u => by.get(u).length)) { const arr = by.get(keys[k++ % keys.length]); if (arr.length) { picked.push(arr.pop()); got++; } }
       if (got < n) short.push(`${s}점 ${n - got}문항`);
-    } else {
-      picked.push(...cand.slice(0, n)); if (cand.length < n) short.push(`${s}점 ${n - cand.length}문항`);
-    }
+    } else { picked.push(...cand.slice(0, n)); if (cand.length < n) short.push(`${s}점 ${n - cand.length}문항`); }
   });
+  if (!picked.length) return toast('조건에 맞는 문항이 없어요');
   picked.sort((a,b) => a.score - b.score || a.num - b.num);
   picked.forEach(q => S.basket.push(q.id));
-  basketChanged(); renderBuilder(); changed();
-  $('#autoInfo').textContent = picked.length ? `${picked.length}문항을 담았습니다.` + (short.length ? ` (조건에 맞는 문항이 모자라 ${short.join(', ')}은 못 뽑았어요)` : '') : '조건에 맞는 문항이 없습니다. 문제 찾기의 검색 조건을 확인해 주세요.';
+  basketChanged(true); changed(); setBTab('items'); renderBuilder();
+  toast(short.length ? `${picked.length}문항을 담았어요 (${short.join(', ')} 부족)` : `${picked.length}문항을 담았어요`);
 };
 
 /* settings */
-const SET_IDS = {title:'sTitle', sub:'sSub', time:'sTime', cols:'sCols', gap:'sGap', renum:'sRenum', source:'sSource', name:'sName', key:'sKey'};
+const SW = {renum:'sRenum', source:'sSource', name:'sName', key:'sKey'};
+const TX = {title:'sTitle', sub:'sSub', time:'sTime'};
 function renderSettings(){
-  for (const [k, id] of Object.entries(SET_IDS)) {
-    const el = document.getElementById(id);
-    if (el.type === 'checkbox') el.checked = !!S.settings[k]; else if (document.activeElement !== el) el.value = S.settings[k];
-  }
+  for (const [k,id] of Object.entries(SW)) document.getElementById(id).checked = !!S.settings[k];
+  for (const [k,id] of Object.entries(TX)) { const el = document.getElementById(id); if (document.activeElement !== el) el.value = S.settings[k]; }
+  $$('#sCols button').forEach(b => b.classList.toggle('on', b.dataset.v === String(S.settings.cols)));
+  $$('#sGap button').forEach(b => b.classList.toggle('on', b.dataset.v === S.settings.gap));
 }
-for (const [k, id] of Object.entries(SET_IDS)) {
-  const el = document.getElementById(id);
-  el.addEventListener(el.tagName === 'INPUT' && el.type !== 'checkbox' ? 'input' : 'change', () => {
-    S.settings[k] = el.type === 'checkbox' ? el.checked : el.value; save(); scheduleSheet();
-  });
-}
+for (const [k,id] of Object.entries(SW)) document.getElementById(id).onchange = e => { S.settings[k] = e.target.checked; save(); scheduleSheet(); };
+for (const [k,id] of Object.entries(TX)) document.getElementById(id).oninput = e => { S.settings[k] = e.target.value; save(); scheduleSheet(); };
+$('#sCols').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.settings.cols = b.dataset.v; save(); renderBuilder(); };
+$('#sGap').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.settings.gap = b.dataset.v; save(); renderBuilder(); };
 
 /* sheet layout (A4 @ 96dpi) */
-const PW = 794, PH = 1123, PADX = 44, PADT = 40, PADB = 34, FOOT = 32, HEAD = 112, COLGAP = 29;
+const PW = 794, PH = 1123, PADX = 44, PADT = 40, PADB = 32, FOOT = 32, HEAD = 112, COLGAP = 29;
 const GAPS = {s:18, m:70, l:160, xl:280};
 let sheetTimer;
 function scheduleSheet(){ clearTimeout(sheetTimer); sheetTimer = setTimeout(renderSheet, 120); }
@@ -480,189 +574,182 @@ function layoutPages(qs, st){
     let k = k0, h = q.h * k + srcH + gap;
     const full = avail();
     if (q.h * k + srcH > full) { k = (full - srcH - 8) / q.h; h = full; }
-    if (used > 0 && used + h > avail() + gap * 0.6) {
-      col++; used = 0;
-      if (col >= cols) newPage();
-    }
-    page.cols[col].push({q, n: i + 1, k});
-    used += h;
+    if (used > 0 && used + h > avail() + gap * 0.6) { col++; used = 0; if (col >= cols) newPage(); }
+    page.cols[col].push({q, n: i + 1, k}); used += h;
   });
-  return {pages, colW, k0};
+  return {pages};
 }
 function qBlock(it, st){
   const q = it.q, k = it.k, w = q.w * k, h = q.h * k;
   let num = '';
   if (st.renum) {
-    const [x0,y0,x1,y1] = q.nb; const bw = (x1 - x0) * k, bh = (y1 - y0) * k;
-    const label = it.n + '.'; const fs = bh * 1.02;
-    const est = fs * (0.5 * String(it.n).length + 0.27);
-    const sx = Math.min(1, (bw + 2) / est);
-    num = `<div class="num" style="left:${x0*k - 1}px;top:${y0*k - 1}px;width:${bw + 2}px;height:${bh + 2}px;font-size:${fs}px"><span style="display:inline-block;transform:scaleX(${sx.toFixed(3)});transform-origin:left center">${label}</span></div>`;
+    const [x0,y0,x1,y1] = q.nb, bw = (x1 - x0) * k, bh = (y1 - y0) * k, fs = bh * 1.02;
+    const est = fs * (0.5 * String(it.n).length + 0.27), sx = Math.min(1, (bw + 2) / est);
+    num = `<div class="num" style="left:${x0*k - 1}px;top:${y0*k - 1}px;width:${bw + 2}px;height:${bh + 2}px;font-size:${fs}px"><span style="display:inline-block;transform:scaleX(${sx.toFixed(3)});transform-origin:left center">${it.n}.</span></div>`;
   }
   return `<div class="qb" style="${st.gap === 's' ? 'flex:0 0 auto;margin-bottom:' + GAPS.s + 'px' : ''}">
     <div class="qimg" style="width:${w}px;height:${h}px"><img src="${imgSrc(q)}" width="${w}" height="${h}" alt="">${num}</div>
-    ${st.source ? `<div class="srcline">출처: ${esc(srcSheet(q))}</div>` : ''}
-  </div>`;
+    ${st.source ? `<div class="srcline">${esc(srcSheet(q))}</div>` : ''}</div>`;
 }
 function renderSheet(){
-  const qs = basketQs(), st = S.settings;
-  const sheet = $('#sheet');
-  if (!qs.length) { sheet.innerHTML = `<div class="empty">문항을 담으면 여기에 시험지 미리보기가 나타납니다.</div>`; $('#pageInfo').textContent = ''; return; }
+  const qs = basketQs(), st = S.settings, sheet = $('#sheet');
+  if (!qs.length) { sheet.innerHTML = `<div class="empty">${icon('doc','empty-ic')}<strong>미리보기가 여기에 나타나요</strong><p>문항을 담으면 실제 인쇄될 모습 그대로 보여 드려요.</p></div>`; $('#pageInfo').textContent = ''; return; }
   const {pages} = layoutPages(qs, st);
-  const keyRows = st.key ? qs.map((q,i) => ({q, n: i+1})) : [];
-  const KEY_PER = 34;
-  const keyPages = [];
+  const keyRows = st.key ? qs.map((q,i) => ({q, n: i+1})) : [], KEY_PER = 34, keyPages = [];
   for (let i = 0; i < keyRows.length; i += KEY_PER) keyPages.push(keyRows.slice(i, i + KEY_PER));
-  const totalPages = pages.length + keyPages.length;
-  const total = qs.reduce((a,q) => a + q.score, 0);
+  const totalPages = pages.length + keyPages.length, total = qs.reduce((a,q) => a + q.score, 0);
   const foot = n => `<div class="p-foot"><span>문항 출처: 한국교육과정평가원 · 비영리 학습용</span><span class="pn">${n} / ${totalPages}</span><span>${esc(st.title || '')}</span></div>`;
   let html = '';
   pages.forEach((p, pi) => {
     let head = '';
-    if (pi === 0 && (st.title || st.sub || st.name)) {
-      head = `<div class="p-head"><div class="t"><h1>${esc(st.title || '')}</h1><div class="sub">${esc(st.sub || '')}</div></div>
-        <div class="meta">${qs.length}문항 · ${total}점${st.time ? ' · ' + esc(st.time) : ''}
-        ${st.name ? '<div class="p-name">번호 <span class="s"></span> 성명 <span></span></div>' : ''}</div></div>`;
-    }
+    if (pi === 0 && (st.title || st.sub || st.name)) head = `<div class="p-head"><div class="t"><h1>${esc(st.title || '')}</h1>${st.sub ? `<div class="sub">${esc(st.sub)}</div>` : ''}</div>
+      <div class="meta">${qs.length}문항 · ${total}점${st.time ? ' · ' + esc(st.time) : ''}${st.name ? '<div class="p-name">번호 <span class="s"></span> 성명 <span></span></div>' : ''}</div></div>`;
     html += `<div class="page-holder"><div class="page">${head}<div class="p-cont">${p.cols.map(c => `<div class="p-col">${c.map(it => qBlock(it, st)).join('')}</div>`).join('')}</div>${foot(pi + 1)}</div></div>`;
   });
   keyPages.forEach((rows, ki) => {
     html += `<div class="page-holder"><div class="page"><div class="key-title">문항 정보표${keyPages.length > 1 ? ` (${ki+1}/${keyPages.length})` : ''}</div>
       <table class="keytable"><thead><tr><th style="width:44px">번호</th><th>출처</th><th style="width:150px">단원</th><th style="width:48px">배점</th><th style="width:90px">정답</th></tr></thead><tbody>
-      ${rows.map(r => `<tr><td>${st.renum ? r.n : r.q.num}</td><td class="l">${esc(srcSheet(r.q))}</td><td>${esc(unitName(r.q.unit))}</td><td>${r.q.score}</td><td></td></tr>`).join('')}
+      ${rows.map(r => `<tr><td>${st.renum ? r.n : r.q.num}</td><td class="l">${esc(srcSheet(r.q))}</td><td>${esc(unitShort(r.q.unit))}</td><td>${r.q.score}</td><td></td></tr>`).join('')}
       </tbody></table><div style="flex:1"></div>${foot(pages.length + ki + 1)}</div></div>`;
   });
   sheet.innerHTML = html;
-  $('#pageInfo').textContent = `A4 ${totalPages}쪽 (문제 ${pages.length}쪽${keyPages.length ? ` + 정보표 ${keyPages.length}쪽` : ''})`;
+  $('#pageInfo').textContent = `A4 · ${totalPages}쪽`;
   fitZoom();
 }
-function fitZoom(){
-  const wrap = $('.preview-wrap'); const w = wrap.clientWidth - 30;
-  $('#sheet').style.setProperty('--zoom', Math.max(0.3, Math.min(1, w / PW)).toFixed(3));
-}
-addEventListener('resize', () => { if ($('#tab-builder').classList.contains('active')) fitZoom(); });
+function fitZoom(){ const w = $('.preview').clientWidth - 40; $('#sheet').style.setProperty('--zoom', Math.max(0.3, Math.min(0.9, w / PW)).toFixed(3)); }
+addEventListener('resize', () => { if (current === 'builder') fitZoom(); });
 $('#printBtn').onclick = async () => {
   if (!S.basket.length) return toast('먼저 문항을 담아 주세요');
   renderSheet();
-  const imgs = $$('#sheet img');
-  await Promise.all(imgs.map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+  await Promise.all($$('#sheet img').map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
   const old = document.title; document.title = S.settings.title || '시험지';
   window.print(); document.title = old;
 };
 
-/* saved sets & share */
+/* saved & share */
 function renderSaved(){
-  const ul = $('#savedSets');
-  ul.innerHTML = (S.sets || []).map((s, i) => `<li><span><b>${esc(s.name)}</b> <span class="muted small">${s.ids.length}문항 · ${esc(s.date)}</span></span>
-    <button class="btn ghost" data-l="${i}">불러오기</button><button class="btn ghost danger" data-d="${i}">삭제</button></li>`).join('');
+  $('#savedSets').innerHTML = (S.sets || []).length ? S.sets.map((s, i) => `<li><span class="name"><b>${esc(s.name)}</b><span>${s.ids.length}문항 · ${esc(s.date)}</span></span>
+    <button class="btn btn-secondary btn-sm" data-l="${i}">불러오기</button><button class="icon-btn sm" data-d="${i}" aria-label="삭제">${icon('trash')}</button></li>`).join('')
+    : `<div class="empty compact">${icon('archive','empty-ic')}<strong>저장한 시험지가 없어요</strong><p>자주 쓰는 구성을 저장해 두면 언제든 다시 불러올 수 있어요.</p></div>`;
 }
 $('#saveSet').onclick = () => {
-  if (!S.basket.length) return toast('담은 문항이 없습니다');
+  if (!S.basket.length) return toast('담은 문항이 없어요');
   const name = $('#setName').value.trim() || S.settings.title || '시험지';
-  const d = new Date(); const date = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
-  S.sets.unshift({name, ids: [...S.basket], settings: {...S.settings}, date}); save(); renderSaved(); toast('이 기기에 저장했습니다');
+  const d = new Date(), date = `${d.getFullYear()}. ${d.getMonth()+1}. ${d.getDate()}.`;
+  S.sets.unshift({name, ids: [...S.basket], settings: {...S.settings}, date}); $('#setName').value = '';
+  save(); renderSaved(); toast('보관함에 저장했어요');
 };
 $('#savedSets').addEventListener('click', e => {
-  const l = e.target.dataset.l, d = e.target.dataset.d;
-  if (l !== undefined) { const s = S.sets[+l]; if (S.basket.length && !confirm('지금 담은 문항을 이 시험지로 바꿀까요?')) return;
-    S.basket = s.ids.filter(id => byId.has(id)); S.settings = Object.assign({...DEF_SETTINGS}, s.settings); basketChanged(); renderBuilder(); changed(); toast('불러왔습니다'); }
-  if (d !== undefined && confirm('저장한 시험지를 삭제할까요?')) { S.sets.splice(+d, 1); save(); renderSaved(); }
+  const l = e.target.closest('[data-l]'), d = e.target.closest('[data-d]');
+  if (l) { const s = S.sets[+l.dataset.l]; if (S.basket.length && !confirm('지금 담은 문항을 이 시험지로 바꿀까요?')) return;
+    S.basket = s.ids.filter(id => byId.has(id)); S.settings = Object.assign({...DEF_SETTINGS}, s.settings); basketChanged(); changed(); setBTab('items'); renderBuilder(); toast('시험지를 불러왔어요'); }
+  if (d && confirm('저장한 시험지를 삭제할까요?')) { S.sets.splice(+d.dataset.d, 1); save(); renderSaved(); }
 });
 const enc = id => { const [y,e,t,n] = id.split('-'); return `${y.slice(2)}${e}${t}${n}`; };
 const dec = s => { const m = s.match(/^(\d\d)([S69])([a-zA-Z]+)(\d\d)$/); return m ? `20${m[1]}-${m[2]}-${m[3]}-${m[4]}` : null; };
 $('#shareSet').onclick = async () => {
-  if (!S.basket.length) return toast('담은 문항이 없습니다');
+  if (!S.basket.length) return toast('담은 문항이 없어요');
   const url = location.origin + location.pathname + '#set=' + S.basket.map(enc).join('.') + '&t=' + encodeURIComponent(S.settings.title || '');
-  try { await navigator.clipboard.writeText(url); toast('공유 링크를 복사했습니다'); }
-  catch(e) { prompt('아래 링크를 복사하세요', url); }
+  try { await navigator.clipboard.writeText(url); toast('공유 링크를 복사했어요'); } catch(e) { prompt('아래 링크를 복사하세요', url); }
 };
 function readHash(){
-  const h = new URLSearchParams(location.hash.slice(1));
-  const set = h.get('set'); if (!set) return;
+  const h = new URLSearchParams(location.hash.slice(1)), set = h.get('set'); if (!set) return;
   const ids = set.split('.').map(dec).filter(id => id && byId.has(id));
   history.replaceState(null, '', location.pathname);
   if (!ids.length) return;
-  if (S.basket.length && !confirm(`공유받은 시험지(${ids.length}문항)를 불러올까요? 지금 담은 문항은 바뀝니다.`)) return;
+  if (S.basket.length && !confirm(`공유받은 시험지(${ids.length}문항)를 불러올까요? 지금 담은 문항은 바뀌어요.`)) return;
   S.basket = ids; const t = h.get('t'); if (t) S.settings.title = t;
-  basketChanged(); showTab('builder'); toast(`공유받은 시험지 ${ids.length}문항을 불러왔습니다`);
+  basketChanged(); bTab = 'items'; showTab('builder'); toast(`공유받은 시험지 ${ids.length}문항을 불러왔어요`);
 }
 
-/* ================= 출제 통계 ================= */
+/* ================= 출제 경향 ================= */
 let stExam = 'all', stScore = 'all';
-function segBind(sel, set){ $$(sel + ' button').forEach(b => b.onclick = () => { $$(sel + ' button').forEach(x => x.classList.toggle('active', x === b)); set(b.dataset.v); renderStats(); }); }
-segBind('#stExam', v => stExam = v); segBind('#stScore', v => stScore = v);
+function segBind(sel, get, set){
+  const sync = () => $$(sel + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === get()));
+  $(sel).onclick = e => { const b = e.target.closest('button'); if (!b) return; set(b.dataset.v); sync(); renderStats(); };
+  sync();
+}
+segBind('#stExam', () => stExam, v => stExam = v);
+segBind('#stScore', () => stScore, v => stScore = v);
 function renderStats(){
   const pool = Q.filter(q => (stExam === 'all' || (stExam === 'mock' ? q.exam > 0 : q.exam === 0)) && (stScore === 'all' || q.score === +stScore));
   const cnt = new Map(); let max = 1;
   pool.forEach(q => { const k = q.unit + '_' + q.year; cnt.set(k, (cnt.get(k)||0) + 1); });
   cnt.forEach(v => max = Math.max(max, v));
-  const order = UNIT_GROUPS.flatMap(g => g.units);
-  const rows = order.filter(u => pool.some(q => q.unit === u));
-  let h = `<table class="heat"><thead><tr><th></th>${YEARS.map(y => `<th>${yearMode()==='hak' ? String(y+1).slice(2)+'학년' : y}</th>`).join('')}<th>합계</th></tr></thead><tbody>`;
-  rows.forEach(u => {
-    let sum = 0;
-    h += `<tr><th class="u">${esc(unitName(u))}</th>` + YEARS.map(y => {
-      const v = cnt.get(u + '_' + y) || 0; sum += v;
-      if (!v) return `<td class="z">0</td>`;
-      const p = Math.round(15 + 85 * v / max);
-      return `<td data-u="${u}" data-y="${y}" style="background:color-mix(in srgb, var(--primary) ${p}%, transparent);color:${p > 55 ? 'var(--primary-ink)' : 'var(--text)'}" title="${y}년 · ${esc(unitName(u))} · ${v}문항">${v}</td>`;
-    }).join('') + `<td class="sum">${sum}</td></tr>`;
+  const lvl = v => Math.min(5, Math.max(1, Math.ceil(v / max * 5)));
+  const cols = YEARS.length + 2;
+  let h = `<table class="heat"><thead><tr><th></th>${YEARS.map(y => `<th>${yearMode() === 'hak' ? `’${String(y+1).slice(2)}` : y}</th>`).join('')}<th>합계</th></tr></thead><tbody>`;
+  let first = true;
+  UNIT_GROUPS.forEach(g => {
+    const us = g.units.filter(u => pool.some(q => q.unit === u)); if (!us.length) return;
+    if (!first && !(g.units.length > 1)) h += `<tr class="sp"><td colspan="${cols}"></td></tr>`;
+    first = false;
+    if (g.units.length > 1) h += `<tr><th class="g" colspan="${cols}">${esc(g.name)}</th></tr>`;
+    us.forEach(u => {
+      let sum = 0;
+      h += `<tr><th class="u">${esc(g.units.length > 1 ? unitName(u) : g.name)}</th>` + YEARS.map(y => {
+        const v = cnt.get(u + '_' + y) || 0; sum += v;
+        return v ? `<td class="h${lvl(v)}" data-u="${u}" data-y="${y}" title="${yLabel(y)} · ${esc(unitName(u))} · ${v}문항">${v}</td>` : `<td class="z"></td>`;
+      }).join('') + `<td class="sum">${sum}</td></tr>`;
+    });
   });
-  h += '</tbody></table>';
-  $('#heat').innerHTML = h;
+  $('#heat').innerHTML = h + '</tbody></table>';
+  $('#legend').innerHTML = `적음 ${[1,2,3,4,5].map(i => `<i class="h${i}"></i>`).join('')} 많음`;
   $$('#heat td[data-u]').forEach(td => td.onclick = () => {
     F = F0(); F.units = [+td.dataset.u]; F.yFrom = F.yTo = +td.dataset.y;
     if (stExam === '0') F.exams = [0]; if (stExam === 'mock') F.exams = [1,2];
     if (stScore === '4') F.scores = [4];
     showTab('browse'); changed();
   });
-  const gc = new Map(); Q.forEach(q => { const g = groupOfUnit(q.unit); gc.set(g, (gc.get(g)||0) + 1); });
-  const top = [...gc].sort((a,b) => b[1] - a[1])[0];
-  const c4 = new Map(); Q.filter(q => q.score === 4).forEach(q => { const g = groupOfUnit(q.unit); c4.set(g, (c4.get(g)||0) + 1); });
-  const top4 = [...c4].sort((a,b) => b[1] - a[1])[0];
+  const gc = new Map(); pool.forEach(q => { const gi = groupOfUnit(q.unit); gc.set(gi, (gc.get(gi)||0) + 1); });
+  const top = [...gc].sort((a,b) => b[1] - a[1]);
+  const papers = new Set(pool.map(q => q.year + '-' + q.exam + '-' + (q.type < 4 ? q.type : 'n'))).size;
+  const recent = pool.filter(q => q.year >= Y1 - 2); const rc = new Map(); recent.forEach(q => { const gi = groupOfUnit(q.unit); rc.set(gi, (rc.get(gi)||0) + 1); });
+  const rtop = [...rc].sort((a,b) => b[1] - a[1])[0];
   $('#statCards').innerHTML = [
-    ['전체 문항', Q.length.toLocaleString(), '문항'],
-    ['수능', Q.filter(q => q.exam === 0).length, '문항'],
-    ['6월 · 9월 모의평가', Q.filter(q => q.exam > 0).length, '문항'],
-    ['시험지 수', new Set(Q.map(q => q.year + '-' + q.exam + '-' + (q.type < 4 ? q.type : 'n'))).size, '회'],
-    ['가장 많이 나온 단원', UNIT_GROUPS[top[0]].name, top[1] + '문항'],
-    ['4점 문항 최다 단원', UNIT_GROUPS[top4[0]].name, top4[1] + '문항'],
-  ].map(([k,v,u]) => `<div class="scard"><div class="k">${k}</div><div class="v">${esc(v)}<small>${u}</small></div></div>`).join('');
+    ['문항', nf(pool.length), '개', `시험지 ${papers}회분`],
+    ['가장 많이 나온 단원', top[0] ? UNIT_GROUPS[top[0][0]].name : '-', '', top[0] ? `${top[0][1]}문항 · ${Math.round(top[0][1]/pool.length*100)}%` : ''],
+    ['그다음', top[1] ? UNIT_GROUPS[top[1][0]].name : '-', '', top[1] ? `${top[1][1]}문항 · ${Math.round(top[1][1]/pool.length*100)}%` : ''],
+    ['최근 3년 최다 단원', rtop ? UNIT_GROUPS[rtop[0]].name : '-', '', rtop ? `${Y1-2}–${Y1}년 ${rtop[1]}문항` : ''],
+  ].map(([k,v,u,s]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${esc(v)}${u ? `<small>${u}</small>` : ''}</div><div class="s">${esc(s)}</div></div>`).join('');
 }
 
-/* ================= 내 학습 기록 ================= */
+/* ================= 학습 기록 ================= */
 function renderMe(){
   const st = Object.entries(S.status).filter(([id]) => byId.has(id));
   const c = s => st.filter(x => x[1] === s).length;
+  const o = c('o'), x = c('x'), r = c('r'), graded = o + x;
   $('#meCards').innerHTML = [
-    ['표시한 문항', st.length, '문항'], ['⭕ 맞음', c('o'), '문항'], ['❌ 틀림', c('x'), '문항'],
-    ['🔁 다시 보기', c('r'), '문항'], ['★ 즐겨찾기', Object.keys(S.fav).length, '문항'], ['📝 메모', Object.keys(S.notes).length, '문항'],
-  ].map(([k,v,u]) => `<div class="scard"><div class="k">${k}</div><div class="v">${v}<small>${u}</small></div></div>`).join('');
+    ['표시한 문항', st.length, '개', `맞음 ${o} · 틀림 ${x} · 다시 보기 ${r}`],
+    ['정답률', graded ? Math.round(o / graded * 100) : '-', graded ? '%' : '', graded ? `맞음·틀림 표시 ${graded}문항 기준` : '맞음·틀림을 표시해 보세요'],
+    ['복습할 문항', x + r, '개', '틀림 + 다시 보기'],
+    ['북마크', Object.keys(S.fav).filter(id => byId.has(id)).length, '개', `메모 ${Object.keys(S.notes).length}개`],
+  ].map(([k,v,u,s]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}${u ? `<small>${u}</small>` : ''}</div><div class="s">${esc(s)}</div></div>`).join('');
   const rows = UNIT_GROUPS.map((g, gi) => {
     const ids = st.filter(([id]) => groupOfUnit(byId.get(id).unit) === gi);
-    const o = ids.filter(x => x[1] === 'o').length, x = ids.filter(x => x[1] === 'x').length, r = ids.filter(x => x[1] === 'r').length, n = ids.length;
-    return {g, gi, o, x, r, n};
-  }).filter(r => r.n);
-  $('#meTable').innerHTML = rows.length ? `<table class="mtable"><thead><tr><th>단원</th><th>표시</th><th>⭕</th><th>❌</th><th>🔁</th><th>비율</th><th></th></tr></thead><tbody>${rows.map(r => `<tr>
-      <td><b>${esc(r.g.name)}</b></td><td>${r.n}</td><td>${r.o}</td><td>${r.x}</td><td>${r.r}</td>
-      <td><div class="bar"><i style="width:${r.o/r.n*100}%;background:var(--o)"></i><i style="width:${r.x/r.n*100}%;background:var(--x)"></i><i style="width:${r.r/r.n*100}%;background:var(--r)"></i></div></td>
-      <td>${r.x + r.r ? `<button class="btn ghost" data-g="${r.gi}">틀림·다시 보기 문항</button>` : ''}</td></tr>`).join('')}</tbody></table>`
-    : '<div class="empty">아직 표시한 문항이 없습니다.</div>';
-  $$('#meTable button[data-g]').forEach(b => b.onclick = () => {
-    const g = UNIT_GROUPS[+b.dataset.g];
-    F = F0(); F.units = [...g.units]; F.mine = 'x';
-    const hasX = Q.some(q => g.units.includes(q.unit) && S.status[q.id] === 'x'); if (!hasX) F.mine = 'r';
+    return {g, gi, n: ids.length, o: ids.filter(v => v[1] === 'o').length, x: ids.filter(v => v[1] === 'x').length, r: ids.filter(v => v[1] === 'r').length};
+  }).filter(v => v.n);
+  $('#meTable').innerHTML = rows.length ? rows.map(v => `<div class="urow">
+      <div><div class="n">${esc(v.g.name)}</div><div class="c">${v.n}문항 · 맞음 ${v.o} · 틀림 ${v.x}${v.r ? ` · 다시 보기 ${v.r}` : ''}</div></div>
+      <div class="sbar"><i style="width:${v.o/v.n*100}%;background:var(--green)"></i><i style="width:${v.x/v.n*100}%;background:var(--red)"></i><i style="width:${v.r/v.n*100}%;background:var(--orange)"></i></div>
+      ${v.x + v.r ? `<button class="link" data-g="${v.gi}">복습 ${icon('right')}</button>` : '<span></span>'}</div>`).join('')
+    : `<div class="empty compact">${icon('activity','empty-ic')}<strong>아직 기록이 없어요</strong><p>문항을 열고 맞음 · 틀림 · 다시 보기를 눌러 보세요.</p><button class="btn btn-secondary" data-tab="browse">문제 풀러 가기</button></div>`;
+  $$('#meTable [data-g]').forEach(b => b.onclick = () => {
+    const g = UNIT_GROUPS[+b.dataset.g]; F = F0(); F.units = [...g.units];
+    F.mine = Q.some(q => g.units.includes(q.unit) && S.status[q.id] === 'x') ? 'x' : 'r';
     showTab('browse'); changed();
   });
   const notes = Object.entries(S.notes).filter(([id]) => byId.has(id));
-  $('#meNotes').innerHTML = notes.length ? notes.map(([id, t]) => `<div class="note-item"><span class="src" data-id="${id}">${esc(srcShort(byId.get(id)))}</span><span class="txt">${esc(t)}</span></div>`).join('') : '<div class="empty">메모를 남긴 문항이 없습니다.</div>';
-  $$('#meNotes .src').forEach(s => s.onclick = () => { const list = notes.map(([id]) => byId.get(id)); openModal(list.findIndex(q => q.id === s.dataset.id), list); });
+  $('#meNotes').innerHTML = notes.length ? notes.map(([id, t]) => { const q = byId.get(id);
+    return `<div class="note" data-id="${id}"><div class="t">${esc(qTitle(q))} <span class="tag tag-s${q.score}">${q.score}점</span></div><div class="b">${esc(t)}</div></div>`; }).join('')
+    : `<div class="empty compact">${icon('pencil','empty-ic')}<strong>메모가 없어요</strong><p>문항을 열어 풀이 아이디어를 적어 두면 여기에 모여요.</p></div>`;
+  $$('#meNotes .note').forEach(n => n.onclick = () => { const list = notes.map(([id]) => byId.get(id)); openViewer(list.findIndex(q => q.id === n.dataset.id), list); });
 }
 $('#exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify(S, null, 1)], {type: 'application/json'});
+  const blob = new Blob([JSON.stringify(S, null, 1)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   const d = new Date(); a.download = `문제은행-기록-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast('기록 파일을 내려받았어요');
 };
 $('#importFile').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
@@ -671,20 +758,20 @@ $('#importFile').onchange = async e => {
     if (!obj || typeof obj !== 'object' || !('basket' in obj)) throw 0;
     if (!confirm('백업 파일로 지금 기록을 바꿀까요?')) return;
     S = Object.assign({basket:[], fav:{}, status:{}, notes:{}, sets:[], settings:{...DEF_SETTINGS}, prefs:{}}, obj);
-    S.basket = S.basket.filter(id => byId.has(id)); save(); basketChanged(); renderMe(); changed(); toast('기록을 불러왔습니다');
-  } catch(err) { alert('백업 파일을 읽지 못했습니다.'); }
+    S.basket = S.basket.filter(id => byId.has(id)); save(); basketChanged(); renderMe(); changed(); toast('기록을 불러왔어요');
+  } catch(err) { alert('백업 파일을 읽지 못했어요.'); }
   e.target.value = '';
 };
 $('#wipeBtn').onclick = () => {
-  if (!confirm('맞음·틀림 표시, 즐겨찾기, 메모를 모두 지울까요? (담은 문항과 저장한 시험지는 남습니다)')) return;
-  S.status = {}; S.fav = {}; S.notes = {}; save(); renderMe(); changed(); toast('기록을 지웠습니다');
+  if (!confirm('맞음 · 틀림 표시, 북마크, 메모를 모두 지울까요? 담은 문항과 보관함은 남아요.')) return;
+  S.status = {}; S.fav = {}; S.notes = {}; save(); renderMe(); changed(); toast('기록을 지웠어요');
 };
 
 /* ---------------- start ---------------- */
-$('#basketCount').textContent = S.basket.length;
+$('#totalCount').textContent = nf(Q.length);
+basketChanged();
 changed();
-const startTab = S.prefs.tab && S.prefs.tab !== 'browse' ? S.prefs.tab : 'browse';
-if (startTab !== 'browse') showTab(startTab);
+showTab(S.prefs.tab || 'browse');
 readHash();
 addEventListener('hashchange', readHash);
 })();
