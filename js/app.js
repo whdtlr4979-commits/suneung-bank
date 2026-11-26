@@ -744,7 +744,12 @@ saveBtn.onclick = async () => {
   try {
     renderSheet();
     await Promise.all($$('#sheet img').map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
-    const progress = (i, n) => { saveBtn.title = `만드는 중 ${Math.round(i / n * 100)}%`; saveBtn.style.setProperty('--p', Math.round(i / n * 100) + '%'); };
+    const progress = (i, n) => {
+      const pct = Math.round(i / n * 100);
+      saveBtn.title = `만드는 중 ${pct}%`; saveBtn.style.setProperty('--p', Math.max(6, pct) + '%');
+      const t = $('#toast'); clearTimeout(toast._t);
+      t.innerHTML = `<span class="spin"></span>PDF 만드는 중 · ${i}/${n}쪽`; t.classList.add('show');
+    };
     const blob = await window.makePdf($('#sheet'), fileBase(st), progress);
     download(blob, fileBase(st) + '.pdf'); toast('PDF 파일을 내려받았어요');
   } catch (err) {

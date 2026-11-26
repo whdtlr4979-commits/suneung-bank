@@ -600,3 +600,5 @@ main{max-width:1360px;margin:0 auto;padding:28px 24px 56px;min-height:calc(100vh
   #tab-builder .page-head{flex-wrap:nowrap}
   .act-btn[title]:hover::before{display:none}
 }
+.toast .spin{width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}

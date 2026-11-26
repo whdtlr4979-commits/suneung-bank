@@ -67,9 +67,13 @@ async function drawEl(g, el, box, F){
   }
   for (const n of el.childNodes) {
     if (n.nodeType === 3) drawText(g, n, cs, box, F);
-    else if (n.nodeType === 1) await drawEl(g, n, box, F);
+    else if (n.nodeType === 1) {
+      if (++drawCount % 30 === 0) await breathe();
+      await drawEl(g, n, box, F);
+    }
   }
 }
+let drawCount = 0;
 async function renderPage(page, F){
   const pr = page.getBoundingClientRect(), z = pr.width / PW;
   const c = document.createElement('canvas'); c.width = Math.round(PW * F); c.height = Math.round(PH * F);
@@ -77,17 +81,28 @@ async function renderPage(page, F){
   await drawEl(g, page, {left: pr.left, top: pr.top, z}, F);
   return c;
 }
+/* 쪽마다 브라우저에 숨 돌릴 틈을 줘서 화면이 멈추지 않게 해요 */
+const breathe = () => new Promise(r => (window.scheduler && scheduler.yield) ? scheduler.yield().then(r) : setTimeout(r, 0));
+const F_PDF = 2.2;                                           // 약 210dpi (문항 그림 원본은 200dpi)
 window.makePdf = async function(sheet, title, onProgress){
   if (!window.jspdf) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
   try { await document.fonts.ready; } catch (e) {}
   const pages = [...sheet.querySelectorAll('.page')];
   const doc = new window.jspdf.jsPDF({unit: 'mm', format: 'a4', orientation: 'portrait', compress: true});
   doc.setProperties({title, creator: '수학 기출 문제은행'});
+  if (onProgress) onProgress(0, pages.length);
+  await breathe();
   for (const [i, page] of pages.entries()) {
-    const c = await renderPage(page, 2.6);
+    const c = await renderPage(page, F_PDF);
+    await breathe();
+    // JPEG는 브라우저가 따로 압축하고, PDF에는 다시 풀지 않고 그대로 넣어요 (PNG보다 훨씬 가벼워요)
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    c.width = c.height = 0;                                   // 캔버스 메모리 바로 풀기
     if (i) doc.addPage('a4', 'portrait');
-    doc.addImage(c.toDataURL('image/png'), 'PNG', 0, 0, 210, 297, undefined, 'FAST');
+    doc.addImage(bytes, 'JPEG', 0, 0, 210, 297, undefined, 'NONE');
     if (onProgress) onProgress(i + 1, pages.length);
+    await breathe();
   }
   return doc.output('blob');
 };
