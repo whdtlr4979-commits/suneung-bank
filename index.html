@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>수학 기출 문제은행</title>
+<meta name="description" content="2013~2026년 수능·6월·9월 모의평가 수학 문항을 연도·단원·배점으로 찾고, 원하는 문항으로 시험지를 만드는 비영리 학습 사이트">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%233b5bdb'/><text x='32' y='44' font-size='34' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'>∑</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar no-print">
+  <div class="brand">
+    <span class="logo">∑</span>
+    <div><b>수학 기출 문제은행</b><small>수능 · 6월 · 9월 모의평가 2013–2026</small></div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button data-tab="browse" class="active">문제 찾기</button>
+    <button data-tab="builder">시험지 만들기 <span id="basketCount" class="pill">0</span></button>
+    <button data-tab="stats">출제 통계</button>
+    <button data-tab="me">내 학습 기록</button>
+  </nav>
+  <div class="top-actions">
+    <button id="themeBtn" class="icon-btn" title="화면 테마 바꾸기" aria-label="화면 테마 바꾸기">◐</button>
+  </div>
+</header>
+
+<main>
+<!-- ============ 문제 찾기 ============ -->
+<section id="tab-browse" class="tab active">
+  <aside class="filters no-print" id="filters">
+    <div class="filters-head">
+      <h2>검색 조건</h2>
+      <button id="resetFilters" class="link-btn">초기화</button>
+      <button id="closeFilters" class="icon-btn mobile-only" aria-label="닫기">✕</button>
+    </div>
+    <label class="search">
+      <input id="q" type="search" placeholder="문제 속 낱말 검색 (예: 정규분포, 넓이, 수직선)">
+    </label>
+    <div class="fgroup">
+      <h3>시험</h3>
+      <div id="f-exam" class="chips"></div>
+    </div>
+    <div class="fgroup">
+      <h3>연도 <select id="yearMode" class="mini-select" title="연도 표기 방식"><option value="exam">시행년도</option><option value="hak">학년도</option></select></h3>
+      <div class="range">
+        <select id="yearFrom"></select><span>~</span><select id="yearTo"></select>
+      </div>
+      <div class="chips small" id="yearQuick"></div>
+    </div>
+    <div class="fgroup">
+      <h3>배점</h3>
+      <div id="f-score" class="chips"></div>
+    </div>
+    <div class="fgroup">
+      <h3>문항 형식</h3>
+      <div id="f-form" class="chips"></div>
+    </div>
+    <div class="fgroup">
+      <h3>유형 · 과목</h3>
+      <div id="f-type"></div>
+    </div>
+    <div class="fgroup">
+      <h3>단원</h3>
+      <div id="f-unit"></div>
+    </div>
+    <div class="fgroup">
+      <h3>문항 번호</h3>
+      <div class="range">
+        <input id="numFrom" type="number" min="1" max="30" value="1"><span>~</span><input id="numTo" type="number" min="1" max="30" value="30">
+      </div>
+    </div>
+    <div class="fgroup">
+      <h3>내 기록</h3>
+      <div id="f-mine" class="chips"></div>
+    </div>
+  </aside>
+
+  <div class="results">
+    <div class="toolbar no-print">
+      <button id="openFilters" class="btn ghost mobile-only">☰ 검색 조건</button>
+      <div class="result-count"><b id="resultCount">0</b>문항</div>
+      <div class="spacer"></div>
+      <select id="sort" title="정렬">
+        <option value="new">최신순</option>
+        <option value="old">오래된순</option>
+        <option value="num">문항 번호순</option>
+        <option value="scoreDesc">배점 높은순</option>
+        <option value="unit">단원순</option>
+        <option value="random">무작위</option>
+      </select>
+      <div class="seg" id="sizeSeg" title="카드 크기">
+        <button data-size="s">작게</button><button data-size="m" class="active">보통</button><button data-size="l">크게</button>
+      </div>
+      <button id="addAllBtn" class="btn ghost" title="현재 검색 결과를 시험지에 모두 담기">결과 모두 담기</button>
+    </div>
+    <div id="activeFilters" class="active-filters no-print"></div>
+    <div id="grid" class="grid size-m"></div>
+    <div id="more" class="more"></div>
+    <div id="empty" class="empty hidden">조건에 맞는 문항이 없습니다. 검색 조건을 바꿔 보세요.</div>
+  </div>
+</section>
+
+<!-- ============ 시험지 만들기 ============ -->
+<section id="tab-builder" class="tab">
+  <div class="builder no-print">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>담은 문항 <span id="bSummary" class="muted"></span></h2>
+        <div class="row gap">
+          <select id="bSort" title="정렬">
+            <option value="">정렬…</option>
+            <option value="score">배점순 (2→3→4점)</option>
+            <option value="unit">단원순</option>
+            <option value="year">연도순</option>
+            <option value="orig">원래 문항 번호순</option>
+            <option value="shuffle">무작위 섞기</option>
+          </select>
+          <button id="bClear" class="btn ghost danger">모두 비우기</button>
+        </div>
+      </div>
+      <div id="bDist" class="dist"></div>
+      <ol id="bList" class="blist"></ol>
+      <div id="bEmpty" class="empty">아직 담은 문항이 없습니다.<br>‘문제 찾기’에서 <b>＋ 담기</b>를 누르거나 아래 ‘자동 출제’를 써 보세요.</div>
+    </div>
+
+    <div class="panel">
+      <h2>자동 출제</h2>
+      <p class="muted">‘문제 찾기’의 현재 검색 조건 안에서 무작위로 뽑아 담습니다. 이미 담은 문항은 다시 뽑지 않습니다.</p>
+      <div class="auto-grid">
+        <label>2점 <input id="a2" type="number" min="0" max="50" value="3"></label>
+        <label>3점 <input id="a3" type="number" min="0" max="50" value="10"></label>
+        <label>4점 <input id="a4" type="number" min="0" max="50" value="7"></label>
+      </div>
+      <label class="check"><input id="aSpread" type="checkbox" checked> 단원이 고르게 섞이도록 뽑기</label>
+      <div class="row gap">
+        <button id="autoBtn" class="btn primary">조건대로 뽑아 담기</button>
+        <span id="autoInfo" class="muted"></span>
+      </div>
+
+      <h2 class="mt">시험지 설정</h2>
+      <div class="form">
+        <label>제목 <input id="sTitle" value="수학 영역 실전 모의고사"></label>
+        <label>부제 <input id="sSub" placeholder="예: 3학년 2반 · 미적분 집중 대비"></label>
+        <label>시험 시간 <input id="sTime" placeholder="예: 100분"></label>
+        <label>단 구성
+          <select id="sCols"><option value="2">2단 (수능 형식)</option><option value="1">1단</option></select>
+        </label>
+        <label>풀이 공간
+          <select id="sGap"><option value="s">좁게</option><option value="m" selected>보통</option><option value="l">넓게</option><option value="xl">아주 넓게</option></select>
+        </label>
+        <label class="check"><input id="sRenum" type="checkbox" checked> 문항 번호를 1번부터 새로 매기기</label>
+        <label class="check"><input id="sSource" type="checkbox" checked> 문항 아래에 출처 표시</label>
+        <label class="check"><input id="sName" type="checkbox" checked> 성명 · 번호 칸 넣기</label>
+        <label class="check"><input id="sKey" type="checkbox" checked> 마지막 쪽에 문항 정보표 넣기 (출처·단원·배점·정답 칸)</label>
+      </div>
+      <div class="row gap mt">
+        <button id="printBtn" class="btn primary big">🖨 인쇄 / PDF로 저장</button>
+      </div>
+      <p class="muted small">인쇄 창에서 대상을 ‘PDF로 저장’으로 고르면 PDF 파일이 됩니다. 용지는 A4, 여백은 ‘기본값’, ‘배경 그래픽’은 켜 주세요.</p>
+
+      <h2 class="mt">저장 · 공유</h2>
+      <div class="row gap">
+        <input id="setName" placeholder="시험지 이름">
+        <button id="saveSet" class="btn">이 기기에 저장</button>
+        <button id="shareSet" class="btn">공유 링크 복사</button>
+      </div>
+      <ul id="savedSets" class="saved"></ul>
+    </div>
+  </div>
+
+  <div class="preview-wrap">
+    <div class="preview-head no-print">
+      <h2>미리보기</h2><span class="muted" id="pageInfo"></span>
+    </div>
+    <div id="sheet" class="sheet"></div>
+  </div>
+</section>
+
+<!-- ============ 출제 통계 ============ -->
+<section id="tab-stats" class="tab">
+  <div class="panel">
+    <div class="panel-head">
+      <h2>단원별 · 연도별 출제 문항 수</h2>
+      <div class="row gap">
+        <div class="seg" id="stExam">
+          <button data-v="all" class="active">전체</button><button data-v="0">수능</button><button data-v="mock">모의평가</button>
+        </div>
+        <div class="seg" id="stScore">
+          <button data-v="all" class="active">모든 배점</button><button data-v="4">4점만</button>
+        </div>
+      </div>
+    </div>
+    <p class="muted">칸을 누르면 그 연도·단원의 문항을 바로 볼 수 있습니다. 진한 칸일수록 많이 나온 단원입니다.</p>
+    <div id="heat" class="heat-wrap"></div>
+  </div>
+  <div class="stat-cards" id="statCards"></div>
+</section>
+
+<!-- ============ 내 학습 기록 ============ -->
+<section id="tab-me" class="tab">
+  <div class="stat-cards" id="meCards"></div>
+  <div class="panel">
+    <h2>단원별 풀이 기록</h2>
+    <p class="muted">문항을 크게 연 뒤 ‘맞음 · 틀림 · 다시 보기’를 표시하면 여기에 모입니다. 기록은 이 기기의 브라우저에만 저장됩니다.</p>
+    <div id="meTable"></div>
+  </div>
+  <div class="panel">
+    <h2>메모를 남긴 문항</h2>
+    <div id="meNotes"></div>
+  </div>
+  <div class="panel">
+    <h2>기록 백업</h2>
+    <p class="muted">다른 기기로 옮기거나 브라우저 기록을 지우기 전에 파일로 백업해 두세요.</p>
+    <div class="row gap">
+      <button id="exportBtn" class="btn">백업 파일 내려받기</button>
+      <label class="btn">백업 파일 불러오기<input id="importFile" type="file" accept="application/json" hidden></label>
+      <button id="wipeBtn" class="btn ghost danger">기록 모두 지우기</button>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="site-footer no-print">
+  <p>문항 출처: 한국교육과정평가원 대학수학능력시험 및 6월·9월 모의평가 (2013–2026년 시행). 문항의 저작권은 한국교육과정평가원에 있습니다.</p>
+  <p>이 사이트는 개인이 만든 비영리 학습용 사이트이며 한국교육과정평가원과 관련이 없습니다. 단원 분류는 참고용입니다.</p>
+</footer>
+
+<!-- 문항 크게 보기 -->
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div id="mTitle" class="m-title"></div>
+      <button class="icon-btn" id="mClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <button class="nav-btn prev" id="mPrev" aria-label="이전 문항">‹</button>
+      <div class="m-paper"><img id="mImg" alt=""></div>
+      <button class="nav-btn next" id="mNext" aria-label="다음 문항">›</button>
+    </div>
+    <div class="modal-foot">
+      <div class="row gap wrap">
+        <button id="mAdd" class="btn primary"></button>
+        <button id="mFav" class="btn"></button>
+        <div class="seg" id="mStatus">
+          <button data-s="o">⭕ 맞음</button><button data-s="x">❌ 틀림</button><button data-s="r">🔁 다시 보기</button>
+        </div>
+        <a id="mDown" class="btn ghost" download>이미지 저장</a>
+        <button id="mSame" class="btn ghost">같은 단원 문항 보기</button>
+      </div>
+      <textarea id="mNote" placeholder="메모 (풀이 아이디어, 헷갈린 점 등) — 자동 저장"></textarea>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
