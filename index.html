@@ -187,6 +187,7 @@
     </div>
     <div class="page-actions">
       <button class="btn btn-secondary" id="shareSet"><svg class="ic"><use href="#i-link"/></svg><span class="hide-sm">링크 복사</span></button>
+      <button class="btn btn-secondary" id="hwpxBtn" title="한글 2014 이후 버전에서 열 수 있는 .hwpx 파일로 저장"><svg class="ic"><use href="#i-download"/></svg>한글 파일</button>
       <button class="btn btn-primary" id="printBtn"><svg class="ic"><use href="#i-print"/></svg>PDF 저장 · 인쇄</button>
     </div>
   </div>
@@ -253,9 +254,10 @@
 
         <div class="opt-group">
           <div class="opt-title">머리글</div>
+          <div class="field"><label for="sSub">부제목</label><input class="input" id="sSub" placeholder="예) 2027학년도 대비 · 3학년 2반"></div>
           <div class="field" data-only="csat"><label for="sArea">제목</label><input class="input" id="sArea" placeholder="수학 모의고사"></div>
           <div class="field" data-only="simple"><label for="sTitle">제목</label><input class="input" id="sTitle" placeholder="예) 실전 모의고사 문제지"></div>
-          <div class="field" data-only="simple"><label for="sSub">부제</label><input class="input" id="sSub" placeholder="예) 3학년 2반 · 미적분 집중"></div>
+          <p class="help">미리보기에서 제목이나 부제목을 눌러 바로 고칠 수도 있어요.</p>
           <div class="field" data-only="simple"><label for="sTime">시험 시간</label><input class="input" id="sTime" placeholder="예) 100분"></div>
         </div>
 
@@ -283,6 +285,7 @@
       <div class="preview-bar no-print">
         <span class="preview-title">미리보기</span>
         <span class="muted" id="pageInfo"></span>
+        <span class="preview-hint"><svg class="ic"><use href="#i-pencil"/></svg>제목 · 부제목을 눌러 바로 고칠 수 있어요</span>
       </div>
       <div id="sheet" class="sheet"></div>
     </div>
@@ -407,6 +410,7 @@
 <div id="scrim" class="scrim hidden"></div>
 
 <script src="js/data.js"></script>
+<script src="js/hwpx.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

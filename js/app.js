@@ -579,7 +579,7 @@ let sheetTimer;
 function scheduleSheet(){ clearTimeout(sheetTimer); sheetTimer = setTimeout(renderSheet, 120); }
 function geom(st){
   const csat = st.style === 'csat';
-  const simpleHead = (st.title || st.sub || st.name) ? 112 : 0;
+  const simpleHead = 112;
   return {csat, padX:44, padT: csat ? 34 : 40, padB: csat ? 22 : 32, foot: csat ? 40 : 32,
     head1: csat ? 118 : simpleHead, headN: csat ? 66 : 0, colGap: csat ? 33 : 29};
 }
@@ -638,13 +638,14 @@ function qBlock(it, st){
     <div class="qimg" style="width:${w}px;height:${h}px"><img src="${imgSrc(q)}" width="${w}" height="${h}" alt="">${num}</div>
     ${st.source ? `<div class="srcline">${esc(srcSheet(q))}</div>` : ''}</div>`;
 }
+const editAttr = (key, ph) => `data-edit="${key}" data-ph="${ph}" contenteditable="true" spellcheck="false"`;
 function csatHead(pn, st){
   const area = esc(st.area || '');
   if (pn === 1) return `<div class="c-head c-first">
-      <div class="c-top"><span class="c-name">${st.name ? '성명 <i></i>' : ''}</span><span></span><span class="c-pn">${pn}</span></div>
-      <div class="c-row"><span></span><span class="c-area big">${area}</span><span></span></div></div>`;
+      <div class="c-top"><span class="c-name">${st.name ? '성명 <i></i>' : ''}</span><span class="c-sub" ${editAttr('sub','부제목을 입력하세요')}>${esc(st.sub || '')}</span><span class="c-pn">${pn}</span></div>
+      <div class="c-row"><span></span><span class="c-area big" ${editAttr('area','제목을 입력하세요')}>${area}</span><span></span></div></div>`;
   const pnEl = `<span class="c-pn">${pn}</span>`;
-  return `<div class="c-head"><div class="c-row">${pn % 2 ? '<span></span>' : pnEl}<span class="c-area">${area}</span>${pn % 2 ? pnEl : '<span></span>'}</div></div>`;
+  return `<div class="c-head"><div class="c-row">${pn % 2 ? '<span></span>' : pnEl}<span class="c-area" data-mirror="area">${area}</span>${pn % 2 ? pnEl : '<span></span>'}</div></div>`;
 }
 function renderSheet(){
   const qs = basketQs(), st = S.settings, sheet = $('#sheet'), G = geom(st);
@@ -662,7 +663,7 @@ function renderSheet(){
   pages.forEach((p, pi) => {
     let head = '';
     if (G.csat) head = csatHead(pi + 1, st);
-    else if (pi === 0 && (st.title || st.sub || st.name)) head = `<div class="p-head"><div class="t"><h1>${esc(st.title || '')}</h1>${st.sub ? `<div class="sub">${esc(st.sub)}</div>` : ''}</div>
+    else if (pi === 0) head = `<div class="p-head"><div class="t"><div class="sub" ${editAttr('sub','부제목을 입력하세요')}>${esc(st.sub || '')}</div><h1 ${editAttr('title','제목을 입력하세요')}>${esc(st.title || '')}</h1></div>
       <div class="meta">${qs.length}문항 · ${total}점${st.time ? ' · ' + esc(st.time) : ''}${st.name ? '<div class="p-name">성명 <span></span></div>' : ''}</div></div>`;
     html += `<div class="page-holder"><div class="page${G.csat ? ' csat' : ''}${+st.cols === 1 ? ' one' : ''}" style="${pad}">${head}<div class="p-cont">${p.cols.map(c => `<div class="p-col">${c.map(it => qBlock(it, st)).join('')}</div>`).join('')}</div>${foot(pi + 1)}</div></div>`;
   });
@@ -684,6 +685,44 @@ $('#printBtn').onclick = async () => {
   await Promise.all($$('#sheet img').map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
   const old = document.title; document.title = (S.settings.style === 'csat' ? S.settings.area : S.settings.title) || '시험지';
   window.print(); document.title = old;
+};
+
+/* 미리보기에서 제목 · 부제목 바로 고치기 */
+const sheetEl = $('#sheet');
+sheetEl.addEventListener('input', e => {
+  const el = e.target.closest('[data-edit]'); if (!el) return;
+  const k = el.dataset.edit, v = el.textContent.replace(/\s*\n\s*/g, ' ');
+  if (!el.textContent) el.innerHTML = '';
+  S.settings[k] = v; save();
+  $$(`#sheet [data-mirror="${k}"], #sheet [data-edit="${k}"]`).forEach(x => { if (x !== el) x.textContent = v; });
+  const inp = document.getElementById(TX[k]); if (inp) inp.value = v;
+});
+sheetEl.addEventListener('keydown', e => { if (e.target.closest('[data-edit]') && e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+sheetEl.addEventListener('paste', e => {
+  if (!e.target.closest('[data-edit]')) return;
+  e.preventDefault(); const t = (e.clipboardData || window.clipboardData).getData('text').replace(/\s+/g, ' ');
+  document.execCommand('insertText', false, t);
+});
+sheetEl.addEventListener('focusout', e => { if (e.target.closest('[data-edit]')) { S.settings[e.target.dataset.edit] = e.target.textContent.trim(); save(); scheduleSheet(); } });
+
+/* 한글(HWPX) 파일로 저장 */
+$('#hwpxBtn').onclick = async () => {
+  if (!S.basket.length) return toast('먼저 문항을 담아 주세요');
+  const btn = $('#hwpxBtn'), label = btn.innerHTML;
+  btn.disabled = true;
+  try {
+    const qs = basketQs(), st = {...S.settings}, G = geom(st);
+    const {pages} = layoutPages(qs, st);
+    const blob = await window.makeHwpx({qs, pages, st, G, PW, PH, labelH: LABEL_H, srcH: st.source ? 16 : 0, gaps: GAPS,
+      imgSrc, srcSheet, unitShort, onProgress: (i, n) => { btn.innerHTML = `${icon('download')}만드는 중 ${i}/${n}`; }});
+    const name = ((st.style === 'csat' ? st.area : st.title) || '시험지').replace(/[\\/:*?"<>|]/g, '').trim() || '시험지';
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = name + '.hwpx';
+    link.style.display = 'none'; document.body.appendChild(link); link.click();
+    setTimeout(() => { URL.revokeObjectURL(link.href); link.parentNode.removeChild(link); }, 4000);
+    toast('한글 파일을 내려받았어요');
+  } catch (err) {
+    console.error(err); alert('한글 파일을 만들지 못했어요. 잠시 뒤 다시 시도해 주세요.');
+  } finally { btn.disabled = false; btn.innerHTML = label; }
 };
 
 /* saved & share */

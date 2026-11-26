@@ -565,3 +565,18 @@ main{max-width:1360px;margin:0 auto;padding:28px 24px 56px;min-height:calc(100vh
   .sheet .page-holder:last-child{page-break-after:auto;break-after:auto}
   .sheet .page{transform:none;box-shadow:none}
 }
+
+/* subtitle + inline editing on the sheet */
+.c-sub{font-size:16px;font-weight:600;color:#222;letter-spacing:-.01em;white-space:nowrap;min-width:40px;text-align:center}
+.p-head .sub{font-size:13px;color:#555;margin:0 0 4px}
+.sheet [data-edit]{outline:1.5px dashed transparent;outline-offset:3px;border-radius:4px;cursor:text;transition:outline-color .15s,background .15s}
+.sheet [data-edit]:hover{outline-color:rgba(49,130,246,.55)}
+.sheet [data-edit]:focus{outline:2px solid #3182f6;background:rgba(49,130,246,.07)}
+.sheet [data-edit]:empty::before{content:attr(data-ph);color:#b0b8c1;font-weight:500}
+.preview-hint{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--text-3)}
+.preview-hint .ic{width:14px;height:14px}
+@media (max-width:720px){.preview-hint{display:none}}
+@media print{
+  .sheet [data-edit]:empty{visibility:hidden}
+  .sheet [data-edit]{outline:none!important;background:none!important}
+}
