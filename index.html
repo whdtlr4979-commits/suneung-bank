@@ -235,15 +235,39 @@
       </div>
 
       <div class="bpane" data-pane="opts">
-        <div class="field"><label for="sTitle">제목</label><input class="input" id="sTitle"></div>
-        <div class="field"><label for="sSub">부제</label><input class="input" id="sSub" placeholder="예) 3학년 2반 · 미적분 집중"></div>
-        <div class="field"><label for="sTime">시험 시간</label><input class="input" id="sTime" placeholder="예) 100분"></div>
-        <div class="field"><label>단 구성</label><div class="seg seg-full" id="sCols"><button data-v="2">2단</button><button data-v="1">1단 (글씨 크게)</button></div></div>
-        <div class="field"><label>풀이 공간</label><div class="seg seg-full" id="sGap"><button data-v="s">좁게</button><button data-v="m">보통</button><button data-v="l">넓게</button><button data-v="xl">아주 넓게</button></div></div>
+        <div class="opt-group">
+          <div class="opt-title">양식</div>
+          <div class="style-cards" id="sStyle">
+            <button data-v="csat"><span class="sc-thumb sc-csat"><i></i><i></i><i></i></span><b>수능 · 모의고사형</b><small>교시 · 영역 · 2단 구분선</small></button>
+            <button data-v="simple"><span class="sc-thumb sc-simple"><i></i><i></i><i></i></span><b>간단형</b><small>제목 · 부제만 깔끔하게</small></button>
+          </div>
+        </div>
+
+        <div class="opt-group">
+          <div class="opt-title">배치</div>
+          <div class="field"><label>단 구성</label><div class="seg seg-full" id="sCols"><button data-v="2">2단</button><button data-v="1">1단 (글씨 크게)</button></div></div>
+          <div class="field"><label>한 단에 넣을 문항 수</label><div class="seg seg-full" id="sPer"><button data-v="0">자동</button><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button></div>
+            <p class="help mt4" id="perHelp"></p></div>
+          <div class="field" data-only="auto"><label>풀이 공간</label><div class="seg seg-full" id="sGap"><button data-v="s">좁게</button><button data-v="m">보통</button><button data-v="l">넓게</button><button data-v="xl">아주 넓게</button></div></div>
+        </div>
+
+        <div class="opt-group">
+          <div class="opt-title">머리글</div>
+          <div class="field"><label for="sTitle" id="sTitleLabel">제목</label><input class="input" id="sTitle" placeholder="예) 실전 모의고사 문제지"></div>
+          <div class="field-row" data-only="csat">
+            <div class="field"><label for="sPeriod">교시</label><input class="input" id="sPeriod" placeholder="제 2 교시"></div>
+            <div class="field"><label for="sArea">영역</label><input class="input" id="sArea" placeholder="수학 영역"></div>
+            <div class="field"><label for="sForm">유형</label><input class="input" id="sForm" placeholder="홀수형"></div>
+          </div>
+          <div class="field" data-only="simple"><label for="sSub">부제</label><input class="input" id="sSub" placeholder="예) 3학년 2반 · 미적분 집중"></div>
+          <div class="field" data-only="simple"><label for="sTime">시험 시간</label><input class="input" id="sTime" placeholder="예) 100분"></div>
+        </div>
+
         <div class="switch-list">
           <label class="switch-row"><span>문항 번호 1번부터 새로 매기기</span><input type="checkbox" class="switch" id="sRenum"></label>
+          <label class="switch-row" data-only="csat"><span>‘5지선다형 · 단답형’ 구분 표시</span><input type="checkbox" class="switch" id="sLabels"></label>
           <label class="switch-row"><span>문항 아래에 출처 표시</span><input type="checkbox" class="switch" id="sSource"></label>
-          <label class="switch-row"><span>번호 · 성명 칸</span><input type="checkbox" class="switch" id="sName"></label>
+          <label class="switch-row"><span>성명 · 수험번호 칸</span><input type="checkbox" class="switch" id="sName"></label>
           <label class="switch-row"><span>마지막 쪽에 문항 정보표</span><input type="checkbox" class="switch" id="sKey"></label>
         </div>
         <p class="help">인쇄 창에서 ‘PDF로 저장’을 고르면 파일로 저장돼요. 용지는 A4, ‘배경 그래픽’은 켜 주세요.</p>

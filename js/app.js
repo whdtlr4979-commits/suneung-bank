@@ -55,7 +55,7 @@ const imgSrc = q => `img/${q.year}/${q.id}.png`;
 
 /* ---------------- storage ---------------- */
 const KEY = 'qbank.v1';
-const DEF_SETTINGS = {title:'수학 영역 실전 모의고사', sub:'', time:'', cols:'2', gap:'m', renum:true, source:true, name:true, key:true};
+const DEF_SETTINGS = {style:'csat', title:'실전 모의고사 문제지', sub:'', time:'', period:'제 2 교시', area:'수학 영역', form:'홀수형', cols:'2', perCol:'2', gap:'m', renum:true, labels:true, source:true, name:true, key:true};
 let S = {basket:[], fav:{}, status:{}, notes:{}, sets:[], settings:{...DEF_SETTINGS}, prefs:{}};
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch(e) {}
 S.settings = Object.assign({...DEF_SETTINGS}, S.settings || {});
@@ -542,40 +542,84 @@ $('#autoBtn').onclick = () => {
 };
 
 /* settings */
-const SW = {renum:'sRenum', source:'sSource', name:'sName', key:'sKey'};
-const TX = {title:'sTitle', sub:'sSub', time:'sTime'};
+const SW = {renum:'sRenum', labels:'sLabels', source:'sSource', name:'sName', key:'sKey'};
+const TX = {title:'sTitle', sub:'sSub', time:'sTime', period:'sPeriod', area:'sArea', form:'sForm'};
+const SEGS = {style:'sStyle', cols:'sCols', perCol:'sPer', gap:'sGap'};
+const PER_HELP = {
+  '0':'문항 길이에 맞춰 이어서 배치하고, 남는 곳은 풀이 공간으로 나눠요.',
+  '1':'한 단에 한 문항씩 넣어 풀이 공간이 아주 넓어요.',
+  '2':'실제 수능처럼 한 단에 2문항씩, 한 쪽에 4문항이 들어가요.',
+  '3':'한 단에 3문항씩 넣어요. 긴 문항은 두 칸을 차지해요.',
+  '4':'한 단에 4문항씩 촘촘하게 넣어요. 긴 문항은 여러 칸을 차지해요.'
+};
 function renderSettings(){
-  for (const [k,id] of Object.entries(SW)) document.getElementById(id).checked = !!S.settings[k];
-  for (const [k,id] of Object.entries(TX)) { const el = document.getElementById(id); if (document.activeElement !== el) el.value = S.settings[k]; }
-  $$('#sCols button').forEach(b => b.classList.toggle('on', b.dataset.v === String(S.settings.cols)));
-  $$('#sGap button').forEach(b => b.classList.toggle('on', b.dataset.v === S.settings.gap));
+  const st = S.settings;
+  for (const [k,id] of Object.entries(SW)) document.getElementById(id).checked = !!st[k];
+  for (const [k,id] of Object.entries(TX)) { const el = document.getElementById(id); if (document.activeElement !== el) el.value = st[k] || ''; }
+  for (const [k,id] of Object.entries(SEGS)) $$('#' + id + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === String(st[k])));
+  const csat = st.style === 'csat', auto = String(st.perCol) === '0';
+  $$('[data-only]').forEach(el => { const o = el.dataset.only; el.classList.toggle('hidden', (o === 'csat' && !csat) || (o === 'simple' && csat) || (o === 'auto' && !auto)); });
+  $('#sTitleLabel').textContent = csat ? '맨 윗줄 제목' : '제목';
+  const per = +st.perCol, cols = +st.cols;
+  $('#perHelp').textContent = PER_HELP[String(st.perCol)] + (per ? ` (한 쪽에 최대 ${per * cols}문항)` : '');
 }
-for (const [k,id] of Object.entries(SW)) document.getElementById(id).onchange = e => { S.settings[k] = e.target.checked; save(); scheduleSheet(); };
+for (const [k,id] of Object.entries(SW)) document.getElementById(id).onchange = e => { S.settings[k] = e.target.checked; save(); renderBuilder(); };
 for (const [k,id] of Object.entries(TX)) document.getElementById(id).oninput = e => { S.settings[k] = e.target.value; save(); scheduleSheet(); };
-$('#sCols').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.settings.cols = b.dataset.v; save(); renderBuilder(); };
-$('#sGap').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.settings.gap = b.dataset.v; save(); renderBuilder(); };
+for (const [k,id] of Object.entries(SEGS)) document.getElementById(id).onclick = e => {
+  const b = e.target.closest('button'); if (!b) return; S.settings[k] = b.dataset.v; save(); renderBuilder();
+};
 
-/* sheet layout (A4 @ 96dpi) */
-const PW = 794, PH = 1123, PADX = 44, PADT = 40, PADB = 32, FOOT = 32, HEAD = 112, COLGAP = 29;
+/* sheet layout (A4 @ 96dpi = 794 x 1123) */
+const PW = 794, PH = 1123;
 const GAPS = {s:18, m:70, l:160, xl:280};
+const LABEL_H = 40;
+const sect = q => isShort(q) ? '단답형' : '5지선다형';
 let sheetTimer;
 function scheduleSheet(){ clearTimeout(sheetTimer); sheetTimer = setTimeout(renderSheet, 120); }
+function geom(st){
+  const csat = st.style === 'csat';
+  const simpleHead = (st.title || st.sub || st.name) ? 112 : 0;
+  return {csat, padX:44, padT: csat ? 34 : 40, padB: csat ? 22 : 32, foot: csat ? 40 : 32,
+    head1: csat ? 118 : simpleHead, headN: csat ? 66 : 0, colGap: csat ? 33 : 29};
+}
 function layoutPages(qs, st){
-  const cols = +st.cols, innerW = PW - PADX*2;
-  const colW = cols === 2 ? (innerW - COLGAP) / 2 : innerW;
+  const G = geom(st), cols = +st.cols, innerW = PW - G.padX * 2;
+  const colW = cols === 2 ? (innerW - G.colGap) / 2 : innerW;
   const k0 = Math.min(colW / MAXW, cols === 2 ? 1 : 0.62);
-  const srcH = st.source ? 16 : 0, gap = GAPS[st.gap] || 70;
-  const headH = (st.title || st.sub || st.name) ? HEAD : 0;
+  const srcH = st.source ? 16 : 0, per = +st.perCol || 0, gap = GAPS[st.gap] || 70;
+  const useLabels = G.csat && st.labels;
   const pages = []; let page = null, col = 0, used = 0;
-  const avail = () => PH - PADT - PADB - FOOT - (pages.length === 1 ? headH : 0);
+  const colH = () => PH - G.padT - G.padB - G.foot - (pages.length === 1 ? G.head1 : G.headN);
   const newPage = () => { page = {cols: Array.from({length: cols}, () => [])}; pages.push(page); col = 0; used = 0; };
+  const nextCol = () => { col++; used = 0; if (col >= cols) newPage(); };
   newPage();
   qs.forEach((q, i) => {
-    let k = k0, h = q.h * k + srcH + gap;
-    const full = avail();
-    if (q.h * k + srcH > full) { k = (full - srcH - 8) / q.h; h = full; }
-    if (used > 0 && used + h > avail() + gap * 0.6) { col++; used = 0; if (col >= cols) newPage(); }
-    page.cols[col].push({q, n: i + 1, k}); used += h;
+    const label = useLabels && (i === 0 || sect(qs[i-1]) !== sect(q)) ? sect(q) : null;
+    const lh = label ? LABEL_H : 0;
+    if (per) {
+      const fit = () => {
+        const H = colH(), slotH = H / per;
+        let k = k0, slots = 1;
+        const need = q.h * k0 + srcH + lh;
+        if (need > slotH) {
+          const k2 = (slotH - srcH - lh - 8) / q.h;
+          if (k2 >= k0 * 0.82) k = k2; else slots = Math.ceil(need / slotH);
+        }
+        if (slots > per) { slots = per; k = Math.min(k0, (H - srcH - lh - 8) / q.h); }
+        return {k, slots, slotH};
+      };
+      let f = fit();
+      if (used > 0 && used + f.slots > per) { nextCol(); f = fit(); }
+      page.cols[col].push({q, n: i + 1, k: f.k, label, h: f.slots * f.slotH});
+      used += f.slots;
+    } else {
+      let k = k0, h = q.h * k + srcH + lh + gap;
+      const full = colH();
+      if (q.h * k + srcH + lh > full) { k = (full - srcH - lh - 8) / q.h; h = full; }
+      if (used > 0 && used + h > colH() + gap * 0.6) nextCol();
+      page.cols[col].push({q, n: i + 1, k, label});
+      used += h;
+    }
   });
   return {pages};
 }
@@ -587,27 +631,43 @@ function qBlock(it, st){
     const est = fs * (0.5 * String(it.n).length + 0.27), sx = Math.min(1, (bw + 2) / est);
     num = `<div class="num" style="left:${x0*k - 1}px;top:${y0*k - 1}px;width:${bw + 2}px;height:${bh + 2}px;font-size:${fs}px"><span style="display:inline-block;transform:scaleX(${sx.toFixed(3)});transform-origin:left center">${it.n}.</span></div>`;
   }
-  return `<div class="qb" style="${st.gap === 's' ? 'flex:0 0 auto;margin-bottom:' + GAPS.s + 'px' : ''}">
+  const style = it.h ? `flex:none;height:${it.h}px` : (st.gap === 's' ? `flex:0 0 auto;margin-bottom:${GAPS.s}px` : '');
+  return `<div class="qb" style="${style}">
+    ${it.label ? `<div class="c-label">${it.label}</div>` : ''}
     <div class="qimg" style="width:${w}px;height:${h}px"><img src="${imgSrc(q)}" width="${w}" height="${h}" alt="">${num}</div>
     ${st.source ? `<div class="srcline">${esc(srcSheet(q))}</div>` : ''}</div>`;
 }
+function csatHead(pn, st){
+  const area = esc(st.area || '수학 영역');
+  const form = st.form ? `<span class="c-form">${esc(st.form)}</span>` : '<span></span>';
+  if (pn === 1) return `<div class="c-head c-first">
+      <div class="c-top"><span class="c-name">${st.name ? '성명 <i></i>수험번호 <i class="w"></i>' : ''}</span><span class="c-title">${esc(st.title || '')}</span><span class="c-pn">${pn}</span></div>
+      <div class="c-row"><span>${st.period ? `<span class="c-period">${esc(st.period)}</span>` : ''}</span><span class="c-area big">${area}</span>${form}</div></div>`;
+  const odd = pn % 2 === 1, pnEl = `<span class="c-pn">${pn}</span>`;
+  return `<div class="c-head"><div class="c-row">${odd ? form : pnEl}<span class="c-area">${area}</span>${odd ? pnEl : form}</div></div>`;
+}
 function renderSheet(){
-  const qs = basketQs(), st = S.settings, sheet = $('#sheet');
+  const qs = basketQs(), st = S.settings, sheet = $('#sheet'), G = geom(st);
   if (!qs.length) { sheet.innerHTML = `<div class="empty">${icon('doc','empty-ic')}<strong>미리보기가 여기에 나타나요</strong><p>문항을 담으면 실제 인쇄될 모습 그대로 보여 드려요.</p></div>`; $('#pageInfo').textContent = ''; return; }
   const {pages} = layoutPages(qs, st);
   const keyRows = st.key ? qs.map((q,i) => ({q, n: i+1})) : [], KEY_PER = 34, keyPages = [];
   for (let i = 0; i < keyRows.length; i += KEY_PER) keyPages.push(keyRows.slice(i, i + KEY_PER));
   const totalPages = pages.length + keyPages.length, total = qs.reduce((a,q) => a + q.score, 0);
-  const foot = n => `<div class="p-foot"><span>문항 출처: 한국교육과정평가원 · 비영리 학습용</span><span class="pn">${n} / ${totalPages}</span><span>${esc(st.title || '')}</span></div>`;
+  const SRC = '문항 출처: 한국교육과정평가원 · 비영리 학습용';
+  const foot = n => G.csat
+    ? `<div class="c-foot"><span></span><span class="pbox"><b>${n}</b><b>${totalPages}</b></span><span class="c-src">${SRC}</span></div>`
+    : `<div class="p-foot"><span>${SRC}</span><span class="pn">${n} / ${totalPages}</span><span>${esc(st.title || '')}</span></div>`;
+  const pad = `padding:${G.padT}px ${G.padX}px ${G.padB}px`;
   let html = '';
   pages.forEach((p, pi) => {
     let head = '';
-    if (pi === 0 && (st.title || st.sub || st.name)) head = `<div class="p-head"><div class="t"><h1>${esc(st.title || '')}</h1>${st.sub ? `<div class="sub">${esc(st.sub)}</div>` : ''}</div>
+    if (G.csat) head = csatHead(pi + 1, st);
+    else if (pi === 0 && (st.title || st.sub || st.name)) head = `<div class="p-head"><div class="t"><h1>${esc(st.title || '')}</h1>${st.sub ? `<div class="sub">${esc(st.sub)}</div>` : ''}</div>
       <div class="meta">${qs.length}문항 · ${total}점${st.time ? ' · ' + esc(st.time) : ''}${st.name ? '<div class="p-name">번호 <span class="s"></span> 성명 <span></span></div>' : ''}</div></div>`;
-    html += `<div class="page-holder"><div class="page">${head}<div class="p-cont">${p.cols.map(c => `<div class="p-col">${c.map(it => qBlock(it, st)).join('')}</div>`).join('')}</div>${foot(pi + 1)}</div></div>`;
+    html += `<div class="page-holder"><div class="page${G.csat ? ' csat' : ''}${+st.cols === 1 ? ' one' : ''}" style="${pad}">${head}<div class="p-cont">${p.cols.map(c => `<div class="p-col">${c.map(it => qBlock(it, st)).join('')}</div>`).join('')}</div>${foot(pi + 1)}</div></div>`;
   });
   keyPages.forEach((rows, ki) => {
-    html += `<div class="page-holder"><div class="page"><div class="key-title">문항 정보표${keyPages.length > 1 ? ` (${ki+1}/${keyPages.length})` : ''}</div>
+    html += `<div class="page-holder"><div class="page${G.csat ? ' csat' : ''}" style="${pad}"><div class="key-title">문항 정보표${keyPages.length > 1 ? ` (${ki+1}/${keyPages.length})` : ''}</div>
       <table class="keytable"><thead><tr><th style="width:44px">번호</th><th>출처</th><th style="width:150px">단원</th><th style="width:48px">배점</th><th style="width:90px">정답</th></tr></thead><tbody>
       ${rows.map(r => `<tr><td>${st.renum ? r.n : r.q.num}</td><td class="l">${esc(srcSheet(r.q))}</td><td>${esc(unitShort(r.q.unit))}</td><td>${r.q.score}</td><td></td></tr>`).join('')}
       </tbody></table><div style="flex:1"></div>${foot(pages.length + ki + 1)}</div></div>`;
