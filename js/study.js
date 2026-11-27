@@ -13,7 +13,7 @@ function st(){
   const S = A().S;
   S.days = S.days || {}; S.history = S.history || [];
   const pp = S.prefs.prac || {};
-  S.prefs.prac = {groups: pp.groups || [], scores: pp.scores || []};   // 무작위 연습은 단원 · 배점만 골라요
+  S.prefs.prac = {groups: pp.groups || [], scores: pp.scores || [], fresh: !!pp.fresh};   // 무작위 연습: 단원 · 배점 · 안 푼 문제만
   S.prefs.mock = Object.assign({elective: 6, scope: 'kice'}, S.prefs.mock || {});
   return S;
 }
@@ -34,10 +34,11 @@ function dailyQ(){
 }
 const PRACTICE_COUNT = 10;
 function practicePool(p){
-  const { Q } = A();
+  const { Q } = A(), S = st();
   return Q.filter(q => {
     if (p.groups.length && !p.groups.includes(A().groupOfUnit(q.unit))) return false;
     if (p.scores.length && !p.scores.includes(q.score)) return false;
+    if (p.fresh && (S.myAns[q.id] !== undefined || S.status[q.id])) return false;
     return true;
   });
 }
@@ -130,6 +131,7 @@ window.renderStudy = function(){
     <p class="muted small mb12">단원과 배점을 고르면 10문제를 무작위로 뽑아요. 한 문제씩 풀고 바로 채점해요.</p>
     <div class="opt"><div class="opt-k">단원</div><div class="presets">${chip('p-group', 'all', !p.groups.length, '전체')}${groupsShown.map(({g, i}) => chip('p-group', i, p.groups.includes(i), esc(g.name))).join('')}</div></div>
     <div class="opt"><div class="opt-k">배점</div><div class="presets">${chip('p-score', 'all', !p.scores.length, '전체')}${[2, 3, 4].map(s => chip('p-score', s, p.scores.includes(s), s + '점')).join('')}</div></div>
+    <label class="switch-row"><span>아직 안 푼 문제만</span><input type="checkbox" class="switch" data-act="p-fresh" ${p.fresh ? 'checked' : ''}></label>
     <div class="card-foot"><span class="muted small">뽑을 수 있는 문제 ${nf(pool.length)}개</span><button class="btn btn-primary btn-lg" data-act="p-start" ${pool.length ? '' : 'disabled'}>${icon('play')}시작하기</button></div>`;
 
   // 실전 모의고사
@@ -172,6 +174,7 @@ document.addEventListener('click', e => {
   switch (act) {
     case 'p-group': v === 'all' ? (p.groups = []) : tog(p.groups, +v); break;
     case 'p-score': v === 'all' ? (p.scores = []) : tog(p.scores, +v); break;
+    case 'p-fresh': p.fresh = b.checked; break;
     case 'm-el': m.elective = +v; break;
     case 'm-scope': m.scope = v; break;
     case 'p-start': {

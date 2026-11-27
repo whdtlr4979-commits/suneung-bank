@@ -636,7 +636,13 @@ main{max-width:1360px;margin:0 auto;padding:28px 24px 56px;min-height:calc(100vh
 .streak .flame .ic{width:20px;height:20px}
 .streak .flame.on{color:#ff6b2c}
 .streak .flame.on .ic{fill:#ffb36b;stroke:#ff6b2c}
-.study-row{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px;align-items:start}
+.study-row{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px;align-items:stretch}
+.study-row>.panel{display:flex;flex-direction:column;min-width:0}
+.study-row>.panel>.card-foot{margin-top:auto}
+.study-row>.panel>:nth-last-child(2){margin-bottom:14px}
+.study-row>.panel>.week{flex:1;min-height:110px}
+.study-row>.panel>.hist,.study-row>.panel>.empty{flex:1}
+.study-row>.panel>.daily-body{flex:1}
 .study-row.two{grid-template-columns:1fr 1fr}
 .study-row .panel+.panel{margin-top:0}
 .card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
