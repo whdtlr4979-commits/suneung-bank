@@ -682,8 +682,8 @@ function qBlock(it, st){
   const style = it.h ? `flex:none;height:${it.h}px` : (st.gap === 's' ? `flex:0 0 auto;margin-bottom:${GAPS.s}px` : '');
   return `<div class="qb" style="${style}">
     ${it.label ? `<div class="c-label">${it.label}</div>` : ''}
-    <div class="qimg" style="width:${w}px;height:${h}px"><img src="${imgSrc(q)}" width="${w}" height="${h}" alt="">${num}</div>
-    ${st.source ? `<div class="srcline">${esc(srcSheet(q))}</div>` : ''}</div>`;
+    ${st.source ? `<div class="srcline">${esc(srcSheet(q))}</div>` : ''}
+    <div class="qimg" style="width:${w}px;height:${h}px"><img src="${imgSrc(q)}" width="${w}" height="${h}" alt="">${num}</div></div>`;
 }
 const editAttr = (key, ph) => `data-edit="${key}" data-ph="${ph}" contenteditable="true" spellcheck="false"`;
 function csatHead(pn, st){
