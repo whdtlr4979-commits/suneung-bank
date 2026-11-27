@@ -947,16 +947,6 @@ $('#wipeBtn').onclick = () => {
   S.status = {}; S.fav = {}; S.notes = {}; S.myAns = {}; save(); renderMe(); changed(); toast('기록을 지웠어요');
 };
 
-/* 글꼴 비교: 주소에 ?font= 가 있을 때만 전환 버튼을 보여요 */
-if (new URLSearchParams(location.search).has('font')) {
-  const fc = $('#fontCompare'), cur = document.documentElement.dataset.font;
-  fc.classList.remove('hidden');
-  fc.querySelectorAll('button').forEach(b => {
-    b.classList.toggle('on', b.dataset.f === cur);
-    b.onclick = () => { const u = new URL(location.href); u.searchParams.set('font', b.dataset.f); location.href = u.toString(); };
-  });
-}
-
 /* ---------------- start ---------------- */
 $('#totalCount').textContent = nf(Q.length);
 basketChanged();

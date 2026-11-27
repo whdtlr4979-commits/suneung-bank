@@ -2,7 +2,7 @@
    Design tokens
    ============================================================ */
 :root{
-  --font-ui:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-ui:"Wanted Sans Variable","Wanted Sans","Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --bg:#ffffff; --bg-subtle:#f9fafb; --surface:#ffffff; --fill:#f2f4f6; --fill-strong:#e5e8eb;
   --border:#e5e8eb; --border-strong:#d1d6db;
   --text:#191f28; --text-2:#4e5968; --text-3:#8b95a1; --text-4:#b0b8c1;
@@ -626,12 +626,3 @@ main{max-width:1360px;margin:0 auto;padding:28px 24px 56px;min-height:calc(100vh
 .v-result.info{background:var(--fill);color:var(--text)}
 .keytable td.ans{font-family:"Times New Roman","Noto Serif KR",serif;font-weight:700;font-size:13px}
 
-/* 글꼴 비교 (주소에 ?font= 가 있을 때만) */
-.font-compare{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 16px;border-radius:999px;background:#191f28;color:#fff;box-shadow:var(--shadow-lg);font-size:13.5px;font-weight:700;white-space:nowrap}
-.font-compare .seg{background:rgba(255,255,255,.12)}
-.font-compare .seg button{color:rgba(255,255,255,.7);height:30px}
-.font-compare .seg button.on{background:#fff;color:#191f28}
-.font-compare .fc-wanted{font-family:"Wanted Sans Variable","Wanted Sans",sans-serif}
-.font-compare .fc-suit{font-family:"SUIT Variable",SUIT,sans-serif}
-@media (max-width:720px){.font-compare{bottom:calc(76px + env(safe-area-inset-bottom));font-size:12.5px;padding-left:12px}.font-compare .seg button{padding:0 9px}}
-@media print{.font-compare{display:none!important}}
