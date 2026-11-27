@@ -18,7 +18,8 @@
 ## 구성
 - `index.html`, `css/style.css`, `js/app.js`: 화면과 기능 (빌드 과정 없음)
 - `js/data.js`: 문항 목록 (연도, 시험, 유형, 번호, 배점, 단원, 번호 위치, 검색용 본문, 정답). 정답은 한국교육과정평가원 정답표(홀수형) 기준입니다.
-- `js/render.js`: 미리보기를 그대로 그려 PDF 만들기 (jsPDF)
+- `js/render.js`: 미리보기를 그대로 그려 PDF 만들기
+- `js/vendor/jspdf.umd.min.js`: [jsPDF](https://github.com/parallax/jsPDF) 2.5.1 (MIT, `js/vendor/jspdf-LICENSE.txt`)
 - `img/<연도>/<id>.png`: 문항 이미지. id 형식은 `연도-시험-유형-번호` (시험: S=수능, 6=6월, 9=9월 / 유형: A, B, ga, na, c=공통, pr=확률과통계, ca=미적분, ge=기하)
 
 ## 글꼴

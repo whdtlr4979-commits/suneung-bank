@@ -85,7 +85,7 @@ async function renderPage(page, F){
 const breathe = () => new Promise(r => (window.scheduler && scheduler.yield) ? scheduler.yield().then(r) : setTimeout(r, 0));
 const F_PDF = 2.2;                                           // 약 210dpi (문항 그림 원본은 200dpi)
 window.makePdf = async function(sheet, title, onProgress){
-  if (!window.jspdf) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  if (!window.jspdf) await loadScript('js/vendor/jspdf.umd.min.js');
   try { await document.fonts.ready; } catch (e) {}
   const pages = [...sheet.querySelectorAll('.page')];
   const doc = new window.jspdf.jsPDF({unit: 'mm', format: 'a4', orientation: 'portrait', compress: true});
