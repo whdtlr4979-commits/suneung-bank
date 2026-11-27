@@ -109,6 +109,7 @@ function showTab(name){
   if (name === 'builder') renderBuilder();
   if (name === 'stats') renderStats();
   if (name === 'me') renderMe();
+  if (name === 'study' && window.renderStudy) window.renderStudy();
   closeSheet();
   window.scrollTo({top:0});
 }
@@ -448,7 +449,7 @@ function answer(n){
   const q = vList[vIdx]; if (!q || !Number.isFinite(n)) return;
   S.myAns[q.id] = n;
   S.status[q.id] = n === q.ans ? 'o' : 'x';
-  save(); renderViewer(); refreshCard(q.id);
+  markDay(1); save(); renderViewer(); refreshCard(q.id);
 }
 $('#vChoices').onclick = e => { const b = e.target.closest('button'); if (b) answer(+b.dataset.c); };
 $('#vSA').onsubmit = e => {
@@ -830,13 +831,27 @@ $('#savedSets').addEventListener('click', e => {
 });
 const enc = id => { const [y,e,t,n] = id.split('-'); return `${y.slice(2)}${e}${t}${n}`; };
 const dec = s => { const m = s.match(/^(\d\d)([S693])([a-zA-Z]+)(\d\d)$/); return m ? `20${m[1]}-${m[2]}-${m[3]}-${m[4]}` : null; };
+$('#quizLink').onclick = async () => {
+  if (!S.basket.length) return toast('담은 문항이 없어요');
+  const t = (S.settings.style === 'csat' ? S.settings.area : S.settings.title) || '';
+  const url = location.origin + location.pathname + '#quiz=' + S.basket.map(enc).join('.') + '&t=' + encodeURIComponent(t);
+  try { await navigator.clipboard.writeText(url); toast('학생용 풀이 링크를 복사했어요'); } catch(e) { prompt('아래 링크를 복사하세요', url); }
+};
 $('#shareSet').onclick = async () => {
   if (!S.basket.length) return toast('담은 문항이 없어요');
   const url = location.origin + location.pathname + '#set=' + S.basket.map(enc).join('.') + '&t=' + encodeURIComponent(S.settings.title || '');
   try { await navigator.clipboard.writeText(url); toast('공유 링크를 복사했어요'); } catch(e) { prompt('아래 링크를 복사하세요', url); }
 };
 function readHash(){
-  const h = new URLSearchParams(location.hash.slice(1)), set = h.get('set'); if (!set) return;
+  const h = new URLSearchParams(location.hash.slice(1));
+  const quiz = h.get('quiz');
+  if (quiz) {
+    const ids = quiz.split('.').map(dec).filter(id => id && byId.has(id));
+    history.replaceState(null, '', location.pathname + location.search);
+    if (ids.length && window.receiveQuiz) { window.receiveQuiz(ids, h.get('t') || ''); showTab('study'); }
+    return;
+  }
+  const set = h.get('set'); if (!set) return;
   const ids = set.split('.').map(dec).filter(id => id && byId.has(id));
   history.replaceState(null, '', location.pathname + location.search);
   if (!ids.length) return;
@@ -947,7 +962,17 @@ $('#importFile').onchange = async e => {
 };
 $('#wipeBtn').onclick = () => {
   if (!confirm('맞음 · 틀림 표시, 북마크, 메모를 모두 지울까요? 담은 문항과 보관함은 남아요.')) return;
-  S.status = {}; S.fav = {}; S.notes = {}; S.myAns = {}; save(); renderMe(); changed(); toast('기록을 지웠어요');
+  S.status = {}; S.fav = {}; S.notes = {}; S.myAns = {}; S.days = {}; S.history = []; S.session = null; save(); renderMe(); changed(); toast('기록을 지웠어요');
+};
+
+/* ---------------- 공부하기(study.js)에서 쓰는 기능 ---------------- */
+function dayKey(d = new Date()){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function markDay(n){ S.days = S.days || {}; const k = dayKey(); S.days[k] = (S.days[k] || 0) + n; }
+window.QBAPP = {
+  get S(){ return S; }, Q, byId, D, UNIT_GROUPS, TYPE_NAME, EXAM_FULL, EXAM_SHORT, IS_KICE,
+  imgSrc, isShort, ansText, unitName, unitShort, groupOfUnit, qTitle, srcSheet, hakOf,
+  icon, esc, nf, toast, save, showTab, openViewer, refreshCard, enc, shuffle, dayKey, markDay,
+  setBasket(ids){ S.basket = ids.slice(); basketChanged(); changed(); },
 };
 
 /* ---------------- start ---------------- */
