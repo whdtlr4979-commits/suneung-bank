@@ -12,7 +12,8 @@ const CIRC = ['①','②','③','④','⑤'];
 function st(){
   const S = A().S;
   S.days = S.days || {}; S.history = S.history || [];
-  S.prefs.prac = Object.assign({groups: [], scores: [], exams: [], years: 'all', count: 10, fresh: false}, S.prefs.prac || {});
+  const pp = S.prefs.prac || {};
+  S.prefs.prac = {groups: pp.groups || [], scores: pp.scores || []};   // 무작위 연습은 단원 · 배점만 골라요
   S.prefs.mock = Object.assign({elective: 6, scope: 'kice'}, S.prefs.mock || {});
   return S;
 }
@@ -31,17 +32,12 @@ function dailyQ(){
   const pool = Q.filter(q => q.year >= 2021 && q.type === 4 && q.score >= 3);
   return pool[hash('daily-' + A().dayKey()) % pool.length];
 }
-const YEAR_PRESETS = [['all', '전체'], ['2021', '2021년 이후'], ['5', '최근 5년'], ['3', '최근 3년']];
+const PRACTICE_COUNT = 10;
 function practicePool(p){
-  const { Q } = A(), S = st(), maxY = Math.max(...Q.map(q => q.year));
+  const { Q } = A();
   return Q.filter(q => {
     if (p.groups.length && !p.groups.includes(A().groupOfUnit(q.unit))) return false;
     if (p.scores.length && !p.scores.includes(q.score)) return false;
-    if (p.exams.length && !p.exams.includes(q.exam)) return false;
-    if (p.years === '2021' && q.year < 2021) return false;
-    if (p.years === '5' && q.year < maxY - 4) return false;
-    if (p.years === '3' && q.year < maxY - 2) return false;
-    if (p.fresh && S.myAns[q.id] !== undefined) return false;
     return true;
   });
 }
@@ -131,13 +127,9 @@ window.renderStudy = function(){
   const chip = (act, v, on, label) => `<button class="preset${on ? ' on' : ''}" data-act="${act}" data-v="${v}">${label}</button>`;
   const groupsShown = UNIT_GROUPS.map((g, i) => ({g, i})).filter(({i}) => i < 12);
   $('#practiceCard').innerHTML = `<div class="card-head"><span class="eyebrow">${icon('dice')}무작위 연습</span></div>
-    <p class="muted small mb12">범위를 고르면 문제를 무작위로 뽑아요. 한 문제씩 풀고 바로 채점해요.</p>
+    <p class="muted small mb12">단원과 배점을 고르면 10문제를 무작위로 뽑아요. 한 문제씩 풀고 바로 채점해요.</p>
     <div class="opt"><div class="opt-k">단원</div><div class="presets">${chip('p-group', 'all', !p.groups.length, '전체')}${groupsShown.map(({g, i}) => chip('p-group', i, p.groups.includes(i), esc(g.name))).join('')}</div></div>
     <div class="opt"><div class="opt-k">배점</div><div class="presets">${chip('p-score', 'all', !p.scores.length, '전체')}${[2, 3, 4].map(s => chip('p-score', s, p.scores.includes(s), s + '점')).join('')}</div></div>
-    <div class="opt"><div class="opt-k">시험</div><div class="presets">${chip('p-exam', 'all', !p.exams.length, '전체')}${[0, 1, 2, 3].map(e => chip('p-exam', e, p.exams.includes(e), A().EXAM_FULL[e])).join('')}</div></div>
-    <div class="opt"><div class="opt-k">연도</div><div class="presets">${YEAR_PRESETS.map(([v, l]) => chip('p-years', v, p.years === v, l)).join('')}</div></div>
-    <div class="opt"><div class="opt-k">문항 수</div><div class="seg">${[5, 10, 20].map(n => `<button data-act="p-count" data-v="${n}" class="${p.count === n ? 'on' : ''}">${n}문제</button>`).join('')}</div></div>
-    <label class="switch-row"><span>아직 안 푼 문제만</span><input type="checkbox" class="switch" data-act="p-fresh" ${p.fresh ? 'checked' : ''}></label>
     <div class="card-foot"><span class="muted small">뽑을 수 있는 문제 ${nf(pool.length)}개</span><button class="btn btn-primary btn-lg" data-act="p-start" ${pool.length ? '' : 'disabled'}>${icon('play')}시작하기</button></div>`;
 
   // 실전 모의고사
@@ -180,14 +172,10 @@ document.addEventListener('click', e => {
   switch (act) {
     case 'p-group': v === 'all' ? (p.groups = []) : tog(p.groups, +v); break;
     case 'p-score': v === 'all' ? (p.scores = []) : tog(p.scores, +v); break;
-    case 'p-exam': v === 'all' ? (p.exams = []) : tog(p.exams, +v); break;
-    case 'p-years': p.years = v; break;
-    case 'p-count': p.count = +v; break;
-    case 'p-fresh': p.fresh = b.checked; break;
     case 'm-el': m.elective = +v; break;
     case 'm-scope': m.scope = v; break;
     case 'p-start': {
-      const qs = pickSpread(practicePool(p), p.count);
+      const qs = pickSpread(practicePool(p), PRACTICE_COUNT);
       if (!qs.length) return A().toast('조건에 맞는 문제가 없어요');
       return start('practice', '무작위 연습', qs);
     }
