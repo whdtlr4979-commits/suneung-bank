@@ -22,7 +22,7 @@
 - `img/<연도>/<id>.png`: 문항 이미지. id 형식은 `연도-시험-유형-번호` (시험: S=수능, 6=6월, 9=9월 / 유형: A, B, ga, na, c=공통, pr=확률과통계, ca=미적분, ge=기하)
 
 ## 글꼴
-[Wanted Sans](https://github.com/wanteddev/wanted-sans) (SIL Open Font License 1.1)
+[Wanted Sans](https://github.com/wanteddev/wanted-sans) 1.0.3 (SIL Open Font License 1.1). 웹용 분할 파일을 `fonts/wanted-sans/`에 직접 넣어 외부 글꼴 서버 없이 불러옵니다. 라이선스 전문은 `fonts/wanted-sans/OFL.txt`.
 
 ## 출처
 문항 · 정답 출처: 한국교육과정평가원 대학수학능력시험 및 모의평가 문제지와 정답표. 문항의 저작권은 한국교육과정평가원에 있습니다. 이 사이트는 비영리 학습용이며 한국교육과정평가원과 관련이 없습니다. 단원 분류는 참고용입니다.
