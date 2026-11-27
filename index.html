@@ -10,7 +10,21 @@
 <link rel="apple-touch-icon" href="img/logo.svg">
 <meta property="og:title" content="기출각">
 <meta property="og:description" content="기출 풀다 보면, 1등급 각 · 수능 · 모의평가 수학 2,268문항">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script>
+/* 글꼴: 기본 Pretendard, 비교용으로 ?font=wanted / ?font=suit */
+(function(){
+  var F = {
+    pretendard: ['https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css', '"Pretendard Variable", Pretendard'],
+    wanted: ['https://cdn.jsdelivr.net/npm/wanted-sans@1.0.3/fonts/webfonts/variable/split/WantedSansVariable.css', '"Wanted Sans Variable", "Wanted Sans"'],
+    suit: ['https://cdn.jsdelivr.net/npm/@sun-typeface/suit@2.0.5/fonts/variable/woff2/SUIT-Variable.css', '"SUIT Variable", SUIT']
+  };
+  var k = new URLSearchParams(location.search).get('font');
+  if (!F[k]) k = 'pretendard';
+  var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = F[k][0]; document.head.appendChild(l);
+  document.documentElement.style.setProperty('--font-ui', F[k][1] + ', -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif');
+  document.documentElement.setAttribute('data-font', k);
+})();
+</script>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -422,6 +436,9 @@
   </div>
 </div>
 
+<div class="font-compare hidden" id="fontCompare">글꼴 비교
+  <div class="seg"><button data-f="pretendard">Pretendard</button><button data-f="wanted" class="fc-wanted">Wanted Sans</button><button data-f="suit" class="fc-suit">SUIT</button></div>
+</div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="scrim" class="scrim hidden"></div>
 

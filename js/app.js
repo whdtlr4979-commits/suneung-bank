@@ -835,7 +835,7 @@ $('#shareSet').onclick = async () => {
 function readHash(){
   const h = new URLSearchParams(location.hash.slice(1)), set = h.get('set'); if (!set) return;
   const ids = set.split('.').map(dec).filter(id => id && byId.has(id));
-  history.replaceState(null, '', location.pathname);
+  history.replaceState(null, '', location.pathname + location.search);
   if (!ids.length) return;
   if (S.basket.length && !confirm(`공유받은 시험지(${ids.length}문항)를 불러올까요? 지금 담은 문항은 바뀌어요.`)) return;
   S.basket = ids; const t = h.get('t'); if (t) S.settings.title = t;
@@ -946,6 +946,16 @@ $('#wipeBtn').onclick = () => {
   if (!confirm('맞음 · 틀림 표시, 북마크, 메모를 모두 지울까요? 담은 문항과 보관함은 남아요.')) return;
   S.status = {}; S.fav = {}; S.notes = {}; S.myAns = {}; save(); renderMe(); changed(); toast('기록을 지웠어요');
 };
+
+/* 글꼴 비교: 주소에 ?font= 가 있을 때만 전환 버튼을 보여요 */
+if (new URLSearchParams(location.search).has('font')) {
+  const fc = $('#fontCompare'), cur = document.documentElement.dataset.font;
+  fc.classList.remove('hidden');
+  fc.querySelectorAll('button').forEach(b => {
+    b.classList.toggle('on', b.dataset.f === cur);
+    b.onclick = () => { const u = new URL(location.href); u.searchParams.set('font', b.dataset.f); location.href = u.toString(); };
+  });
+}
 
 /* ---------------- start ---------------- */
 $('#totalCount').textContent = nf(Q.length);
