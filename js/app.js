@@ -397,7 +397,7 @@ function closeViewer(){ $('#viewer').classList.add('hidden'); vIdx = -1; documen
 function renderViewer(){
   const q = vList[vIdx]; if (!q) return;
   $('#vCount').textContent = `${nf(vIdx + 1)} / ${nf(vList.length)}`;
-  $('#vEyebrow').textContent = IS_KICE(q.exam) ? `${q.year}년 시행 · ${q.year + 1}학년도` : `${q.year}년 3월 시행 · 시도교육청 주관`;
+  $('#vEyebrow').textContent = IS_KICE(q.exam) ? `${q.year}년 시행 · ${q.year + 1}학년도` : (q.year === 2020 ? '2020년 4월 시행(코로나로 연기) · 시도교육청 주관' : `${q.year}년 3월 시행 · 시도교육청 주관`);
   $('#vTitle').textContent = `${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번`;
   $('#vTags').innerHTML = `<span class="tag tag-s${q.score}">${q.score}점</span><span class="tag tag-gray">${esc(unitName(q.unit))}</span><span class="tag tag-gray">${isShort(q) ? '단답형' : '5지선다형'}</span>`;
   $('#vImg').src = imgSrc(q); $('#vImg').alt = `${hakOf(q)}학년도 ${EXAM_FULL[q.exam]} ${q.num}번 문제`;
