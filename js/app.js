@@ -15,7 +15,7 @@ const EXAM_FULL = ['수능','6월 모의평가','9월 모의평가'];
 const EXAM_ORDER = [2,0,1];                // 한 해 안의 시행 순서: 6월 → 9월 → 수능
 const Q = D.rows.map((r,i) => ({
   i, id:r[0], exam:r[1], year:r[2], type:r[3], num:r[4], score:r[5], unit:r[6],
-  w:r[7], h:r[8], nb:[r[9],r[10],r[11],r[12]], text:r[13]
+  w:r[7], h:r[8], nb:[r[9],r[10],r[11],r[12]], text:r[13], ans:r[14]
 }));
 const byId = new Map(Q.map(q => [q.id, q]));
 const YEARS = [...new Set(Q.map(q => q.year))].sort((a,b) => a-b);
@@ -52,16 +52,19 @@ const TYPE_GROUPS = [['2021년 이후', [4,5,6,7]], ['2016–2020년', [2,3]], [
 const TYPE_NAME = ['수학 A형','수학 B형','가형','나형','공통','확률과 통계','미적분','기하'];
 const isShort = q => q.year <= 2020 ? q.num >= 22 : (q.type === 4 ? q.num >= 16 : q.num >= 29);
 const imgSrc = q => `img/${q.year}/${q.id}.png`;
+const CIRCLED = ['①','②','③','④','⑤'];
+const ansText = q => isShort(q) ? String(q.ans) : CIRCLED[q.ans - 1];
 
 /* ---------------- storage ---------------- */
 const KEY = 'qbank.v1';
-const DEF_SETTINGS = {style:'csat', title:'실전 모의고사 문제지', sub:'', time:'', area:'수학 모의고사', cols:'2', perCol:'2', gap:'m', renum:true, labels:true, source:true, name:true, key:true};
-let S = {basket:[], fav:{}, status:{}, notes:{}, sets:[], settings:{...DEF_SETTINGS}, prefs:{}};
+const DEF_SETTINGS = {style:'csat', title:'실전 모의고사 문제지', sub:'', time:'', area:'수학 모의고사', cols:'2', perCol:'2', gap:'m', renum:true, labels:true, source:true, name:true, key:true, keyAns:true};
+let S = {basket:[], fav:{}, status:{}, notes:{}, myAns:{}, sets:[], settings:{...DEF_SETTINGS}, prefs:{}};
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch(e) {}
 S.settings = Object.assign({...DEF_SETTINGS}, S.settings || {});
 if (!S.settings.area || S.settings.area === '수학 영역') S.settings.area = DEF_SETTINGS.area;
 delete S.settings.period; delete S.settings.form;
 S.prefs = S.prefs || {};
+S.myAns = S.myAns || {};
 S.basket = (S.basket || []).filter(id => byId.has(id));
 let saveTimer;
 function save(){ clearTimeout(saveTimer); saveTimer = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e) {} }, 150); }
@@ -401,6 +404,7 @@ function renderViewer(){
   $('#vFav').classList.toggle('on', !!S.fav[q.id]);
   $('#vFav span').textContent = S.fav[q.id] ? '북마크됨' : '북마크';
   $$('#vStatus button').forEach(b => b.classList.toggle('on', S.status[q.id] === b.dataset.s));
+  renderAnswer(q);
   $('#vDown').href = imgSrc(q);
   $('#vDown').download = `${q.year + 1}학년도 ${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번 (${q.score}점, ${UNITS[q.unit]}).png`;
   $('#vNote').value = S.notes[q.id] || '';
@@ -413,6 +417,48 @@ $('#vPrev').onclick = () => { if (vIdx > 0) { vIdx--; renderViewer(); } };
 $('#vNext').onclick = () => { if (vIdx < vList.length - 1) { vIdx++; renderViewer(); } };
 $('#vAdd').onclick = () => toggleBasket(vList[vIdx].id);
 $('#vFav').onclick = () => toggleFav(vList[vIdx].id);
+/* 답 확인 · 정답 보기 */
+const revealed = new Set();
+function renderAnswer(q){
+  const sa = isShort(q), mine = S.myAns[q.id];
+  $('#vChoices').classList.toggle('hidden', sa);
+  $('#vSA').classList.toggle('hidden', !sa);
+  const shown = mine !== undefined || revealed.has(q.id);
+  $$('#vChoices button').forEach(b => {
+    const c = +b.dataset.c;
+    b.className = '';
+    if (mine === c) b.classList.add(c === q.ans ? 'right' : 'wrong');
+    else if (shown && c === q.ans) b.classList.add('answer');
+  });
+  if (document.activeElement !== $('#vSAin')) $('#vSAin').value = sa && mine !== undefined ? mine : '';
+  const r = $('#vResult');
+  if (mine !== undefined) {
+    const ok = mine === q.ans;
+    r.className = 'v-result ' + (ok ? 'ok' : 'no');
+    r.innerHTML = ok ? `${icon('check')}정답이에요` : `${icon('x')}아쉬워요 · 정답은 <b>${esc(ansText(q))}</b>`;
+  } else if (revealed.has(q.id)) {
+    r.className = 'v-result info'; r.innerHTML = `정답 <b>${esc(ansText(q))}</b>`;
+  } else r.className = 'v-result hidden';
+  $('#vReveal').textContent = shown ? (mine !== undefined ? '다시 풀기' : '정답 숨기기') : '정답 보기';
+}
+function answer(n){
+  const q = vList[vIdx]; if (!q || !Number.isFinite(n)) return;
+  S.myAns[q.id] = n;
+  S.status[q.id] = n === q.ans ? 'o' : 'x';
+  save(); renderViewer(); refreshCard(q.id);
+}
+$('#vChoices').onclick = e => { const b = e.target.closest('button'); if (b) answer(+b.dataset.c); };
+$('#vSA').onsubmit = e => {
+  e.preventDefault(); const v = $('#vSAin').value.trim();
+  if (!/^\d{1,4}$/.test(v)) { $('#vSAin').focus(); return toast('숫자로 입력해 주세요'); }
+  $('#vSAin').blur(); answer(+v);
+};
+$('#vReveal').onclick = () => {
+  const q = vList[vIdx];
+  if (S.myAns[q.id] !== undefined) { delete S.myAns[q.id]; delete S.status[q.id]; revealed.delete(q.id); save(); refreshCard(q.id); }
+  else if (revealed.has(q.id)) revealed.delete(q.id); else revealed.add(q.id);
+  renderViewer();
+};
 $('#vStatus').onclick = e => {
   const b = e.target.closest('button'); if (!b) return; const id = vList[vIdx].id;
   if (S.status[id] === b.dataset.s) delete S.status[id]; else S.status[id] = b.dataset.s;
@@ -428,7 +474,8 @@ $('#vSame').onclick = () => { const q = vList[vIdx]; closeViewer(); F = F0(); F.
 document.addEventListener('keydown', e => {
   if (vIdx < 0) return;
   if (e.key === 'Escape') return closeViewer();
-  if (e.target.tagName === 'TEXTAREA') return;
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (/^[1-5]$/.test(e.key) && !isShort(vList[vIdx])) { answer(+e.key); return; }
   if (e.key === 'ArrowLeft') $('#vPrev').click();
   else if (e.key === 'ArrowRight') $('#vNext').click();
   else if (e.key.toLowerCase() === 'a') $('#vAdd').click();
@@ -544,7 +591,7 @@ $('#autoBtn').onclick = () => {
 };
 
 /* settings */
-const SW = {renum:'sRenum', labels:'sLabels', source:'sSource', name:'sName', key:'sKey'};
+const SW = {renum:'sRenum', labels:'sLabels', source:'sSource', name:'sName', key:'sKey', keyAns:'sKeyAns'};
 const TX = {title:'sTitle', sub:'sSub', time:'sTime', area:'sArea'};
 const SEGS = {style:'sStyle', cols:'sCols', perCol:'sPer', gap:'sGap'};
 const PER_HELP = {
@@ -560,7 +607,7 @@ function renderSettings(){
   for (const [k,id] of Object.entries(TX)) { const el = document.getElementById(id); if (document.activeElement !== el) el.value = st[k] || ''; }
   for (const [k,id] of Object.entries(SEGS)) $$('#' + id + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === String(st[k])));
   const csat = st.style === 'csat', auto = String(st.perCol) === '0';
-  $$('[data-only]').forEach(el => { const o = el.dataset.only; el.classList.toggle('hidden', (o === 'csat' && !csat) || (o === 'simple' && csat) || (o === 'auto' && !auto)); });
+  $$('[data-only]').forEach(el => { const o = el.dataset.only; el.classList.toggle('hidden', (o === 'csat' && !csat) || (o === 'simple' && csat) || (o === 'auto' && !auto) || (o === 'key' && !st.key)); });
   const per = +st.perCol, cols = +st.cols;
   $('#perHelp').textContent = PER_HELP[String(st.perCol)] + (per ? ` (한 쪽에 최대 ${per * cols}문항)` : '');
 }
@@ -670,7 +717,7 @@ function renderSheet(){
   keyPages.forEach((rows, ki) => {
     html += `<div class="page-holder"><div class="page${G.csat ? ' csat' : ''}" style="${pad}"><div class="key-title">문항 정보표${keyPages.length > 1 ? ` (${ki+1}/${keyPages.length})` : ''}</div>
       <table class="keytable"><thead><tr><th style="width:44px">번호</th><th>출처</th><th style="width:150px">단원</th><th style="width:48px">배점</th><th style="width:90px">정답</th></tr></thead><tbody>
-      ${rows.map(r => `<tr><td>${st.renum ? r.n : r.q.num}</td><td class="l">${esc(srcSheet(r.q))}</td><td>${esc(unitShort(r.q.unit))}</td><td>${r.q.score}</td><td></td></tr>`).join('')}
+      ${rows.map(r => `<tr><td>${st.renum ? r.n : r.q.num}</td><td class="l">${esc(srcSheet(r.q))}</td><td>${esc(unitShort(r.q.unit))}</td><td>${r.q.score}</td><td class="ans">${st.keyAns ? esc(ansText(r.q)) : ''}</td></tr>`).join('')}
       </tbody></table><div style="flex:1"></div>${foot(pages.length + ki + 1)}</div></div>`;
   });
   sheet.innerHTML = html;
@@ -890,14 +937,14 @@ $('#importFile').onchange = async e => {
     const obj = JSON.parse(await f.text());
     if (!obj || typeof obj !== 'object' || !('basket' in obj)) throw 0;
     if (!confirm('백업 파일로 지금 기록을 바꿀까요?')) return;
-    S = Object.assign({basket:[], fav:{}, status:{}, notes:{}, sets:[], settings:{...DEF_SETTINGS}, prefs:{}}, obj);
+    S = Object.assign({basket:[], fav:{}, status:{}, notes:{}, myAns:{}, sets:[], settings:{...DEF_SETTINGS}, prefs:{}}, obj);
     S.basket = S.basket.filter(id => byId.has(id)); save(); basketChanged(); renderMe(); changed(); toast('기록을 불러왔어요');
   } catch(err) { alert('백업 파일을 읽지 못했어요.'); }
   e.target.value = '';
 };
 $('#wipeBtn').onclick = () => {
   if (!confirm('맞음 · 틀림 표시, 북마크, 메모를 모두 지울까요? 담은 문항과 보관함은 남아요.')) return;
-  S.status = {}; S.fav = {}; S.notes = {}; save(); renderMe(); changed(); toast('기록을 지웠어요');
+  S.status = {}; S.fav = {}; S.notes = {}; S.myAns = {}; save(); renderMe(); changed(); toast('기록을 지웠어요');
 };
 
 /* ---------------- start ---------------- */

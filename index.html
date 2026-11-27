@@ -267,6 +267,7 @@
           <label class="switch-row"><span>문항 아래에 출처 표시</span><input type="checkbox" class="switch" id="sSource"></label>
           <label class="switch-row"><span>성명 칸</span><input type="checkbox" class="switch" id="sName"></label>
           <label class="switch-row"><span>마지막 쪽에 문항 정보표</span><input type="checkbox" class="switch" id="sKey"></label>
+          <label class="switch-row" data-only="key"><span>정보표에 정답 넣기</span><input type="checkbox" class="switch" id="sKeyAns"></label>
         </div>
         <p class="help">인쇄 창에서 ‘PDF로 저장’을 고르면 파일로 저장돼요. 용지는 A4, ‘배경 그래픽’은 켜 주세요.</p>
       </div>
@@ -350,7 +351,7 @@
 </main>
 
 <footer class="footer no-print">
-  <p>문항 출처: 한국교육과정평가원 대학수학능력시험 및 6월 · 9월 모의평가(2013–2026년 시행). 문항의 저작권은 한국교육과정평가원에 있어요.</p>
+  <p>문항 · 정답 출처: 한국교육과정평가원 대학수학능력시험 및 6월 · 9월 모의평가(2013–2026년 시행) 문제지와 정답표. 문항의 저작권은 한국교육과정평가원에 있어요.</p>
   <p>개인이 만든 비영리 학습용 사이트이며 한국교육과정평가원과 관련이 없어요. 단원 분류는 참고용이에요.</p>
 </footer>
 
@@ -388,6 +389,17 @@
           </div>
         </div>
         <div class="v-block">
+          <div class="v-label row between"><span>답 확인</span><button class="link" id="vReveal">정답 보기</button></div>
+          <div class="choice-row" id="vChoices">
+            <button data-c="1" aria-label="1번">①</button><button data-c="2" aria-label="2번">②</button><button data-c="3" aria-label="3번">③</button><button data-c="4" aria-label="4번">④</button><button data-c="5" aria-label="5번">⑤</button>
+          </div>
+          <form class="sa-row" id="vSA" autocomplete="off">
+            <input class="input" id="vSAin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="답을 입력하세요" aria-label="단답형 답">
+            <button class="btn btn-secondary" type="submit">확인</button>
+          </form>
+          <div class="v-result hidden" id="vResult" role="status"></div>
+        </div>
+        <div class="v-block">
           <div class="v-label">풀이 기록</div>
           <div class="status-seg" id="vStatus">
             <button data-s="o"><i class="dot dot-o"></i>맞음</button>
@@ -400,7 +412,7 @@
           <textarea id="vNote" class="input" placeholder="풀이 아이디어나 헷갈린 점을 적어 두세요. 자동으로 저장돼요."></textarea>
         </div>
         <button class="link" id="vSame">같은 단원 문항 더 보기 <svg class="ic"><use href="#i-right"/></svg></button>
-        <div class="kbd-hint hide-sm"><kbd>←</kbd><kbd>→</kbd> 이동 <kbd>A</kbd> 담기 <kbd>B</kbd> 북마크 <kbd>Esc</kbd> 닫기</div>
+        <div class="kbd-hint hide-sm"><kbd>←</kbd><kbd>→</kbd> 이동 <kbd>1</kbd>~<kbd>5</kbd> 답 고르기 <kbd>A</kbd> 담기 <kbd>B</kbd> 북마크 <kbd>Esc</kbd> 닫기</div>
       </aside>
     </div>
   </div>
