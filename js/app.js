@@ -9,10 +9,13 @@ const BOX = '<span class="box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5
 const nf = n => n.toLocaleString('ko-KR');
 
 /* ---------------- data ---------------- */
-const EXAM_NAME = D.exams;                 // 수능, 6월 모평, 9월 모평
-const EXAM_SHORT = ['수능','6월','9월'];
-const EXAM_FULL = ['수능','6월 모의평가','9월 모의평가'];
-const EXAM_ORDER = [2,0,1];                // 한 해 안의 시행 순서: 6월 → 9월 → 수능
+const EXAM_NAME = D.exams;                 // 수능, 6월 모평, 9월 모평, 3월 학평
+const EXAM_SHORT = ['수능','6월','9월','3월'];
+const EXAM_FULL = ['수능','6월 모의평가','9월 모의평가','3월 학력평가'];
+const EXAM_ORDER = [3,1,2,0];              // 한 해 안의 시행 순서: 3월 → 6월 → 9월 → 수능
+const IS_KICE = e => e <= 2;               // 0~2: 한국교육과정평가원, 3: 시도교육청
+/* 학년도: 평가원 시험은 시행년도+1, 3월 학력평가는 시행년도와 같아요 (예: 2013년 3월 = 2013학년도 3월 학력평가) */
+const hakOf = q => IS_KICE(q.exam) ? q.year + 1 : q.year;
 const Q = D.rows.map((r,i) => ({
   i, id:r[0], exam:r[1], year:r[2], type:r[3], num:r[4], score:r[5], unit:r[6],
   w:r[7], h:r[8], nb:[r[9],r[10],r[11],r[12]], text:r[13], ans:r[14]
@@ -75,7 +78,7 @@ const yLabel = y => yearMode() === 'hak' ? `${y+1}학년도` : `${y}년`;
 const yShort = y => yearMode() === 'hak' ? `${y+1}학년도` : `${y}`;
 const qTitle = q => `${yShort(q.year)} ${EXAM_SHORT[q.exam]} ${q.num}번`;
 const qSub = q => q.type >= 4 ? TYPE_NAME[q.type] : TYPE_NAME[q.type];
-const srcSheet = q => `${q.year+1}학년도 ${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번`;
+const srcSheet = q => `${hakOf(q)}학년도 ${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번`;
 
 function toast(msg){
   const t = $('#toast'); t.innerHTML = icon('check') + esc(msg); t.classList.add('show');
@@ -394,10 +397,10 @@ function closeViewer(){ $('#viewer').classList.add('hidden'); vIdx = -1; documen
 function renderViewer(){
   const q = vList[vIdx]; if (!q) return;
   $('#vCount').textContent = `${nf(vIdx + 1)} / ${nf(vList.length)}`;
-  $('#vEyebrow').textContent = `${q.year}년 시행 · ${q.year + 1}학년도`;
+  $('#vEyebrow').textContent = IS_KICE(q.exam) ? `${q.year}년 시행 · ${q.year + 1}학년도` : `${q.year}년 3월 시행 · 시도교육청 주관`;
   $('#vTitle').textContent = `${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번`;
   $('#vTags').innerHTML = `<span class="tag tag-s${q.score}">${q.score}점</span><span class="tag tag-gray">${esc(unitName(q.unit))}</span><span class="tag tag-gray">${isShort(q) ? '단답형' : '5지선다형'}</span>`;
-  $('#vImg').src = imgSrc(q); $('#vImg').alt = `${q.year + 1}학년도 ${EXAM_FULL[q.exam]} ${q.num}번 문제`;
+  $('#vImg').src = imgSrc(q); $('#vImg').alt = `${hakOf(q)}학년도 ${EXAM_FULL[q.exam]} ${q.num}번 문제`;
   const inB = S.basket.includes(q.id);
   $('#vAdd').innerHTML = inB ? icon('check') + '시험지에 담겨 있어요' : icon('plus') + '시험지에 담기';
   $('#vAdd').classList.toggle('added', inB);
@@ -406,7 +409,7 @@ function renderViewer(){
   $$('#vStatus button').forEach(b => b.classList.toggle('on', S.status[q.id] === b.dataset.s));
   renderAnswer(q);
   $('#vDown').href = imgSrc(q);
-  $('#vDown').download = `${q.year + 1}학년도 ${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번 (${q.score}점, ${UNITS[q.unit]}).png`;
+  $('#vDown').download = `${hakOf(q)}학년도 ${EXAM_FULL[q.exam]} ${TYPE_NAME[q.type]} ${q.num}번 (${q.score}점, ${UNITS[q.unit]}).png`;
   $('#vNote').value = S.notes[q.id] || '';
   $('#vPrev').disabled = vIdx <= 0; $('#vNext').disabled = vIdx >= vList.length - 1;
   $('.viewer-stage').scrollTop = 0;
@@ -701,7 +704,7 @@ function renderSheet(){
   const keyRows = st.key ? qs.map((q,i) => ({q, n: i+1})) : [], KEY_PER = 34, keyPages = [];
   for (let i = 0; i < keyRows.length; i += KEY_PER) keyPages.push(keyRows.slice(i, i + KEY_PER));
   const totalPages = pages.length + keyPages.length, total = qs.reduce((a,q) => a + q.score, 0);
-  const SRC = '문항 출처: 한국교육과정평가원 · 비영리 학습용';
+  const SRC = '문항 출처: ' + ([...new Set(qs.map(q => IS_KICE(q.exam) ? '한국교육과정평가원' : '시도교육청'))].join(' · ') || '한국교육과정평가원') + ' · 비영리 학습용';
   const foot = n => G.csat
     ? `<div class="c-foot"><span></span><span class="pbox"><b>${n}</b><b>${totalPages}</b></span><span class="c-src">${SRC}</span></div>`
     : `<div class="p-foot"><span>${SRC}</span><span class="pn">${n} / ${totalPages}</span><span>${esc(st.title || '')}</span></div>`;
@@ -826,7 +829,7 @@ $('#savedSets').addEventListener('click', e => {
   if (d && confirm('저장한 시험지를 삭제할까요?')) { S.sets.splice(+d.dataset.d, 1); save(); renderSaved(); }
 });
 const enc = id => { const [y,e,t,n] = id.split('-'); return `${y.slice(2)}${e}${t}${n}`; };
-const dec = s => { const m = s.match(/^(\d\d)([S69])([a-zA-Z]+)(\d\d)$/); return m ? `20${m[1]}-${m[2]}-${m[3]}-${m[4]}` : null; };
+const dec = s => { const m = s.match(/^(\d\d)([S693])([a-zA-Z]+)(\d\d)$/); return m ? `20${m[1]}-${m[2]}-${m[3]}-${m[4]}` : null; };
 $('#shareSet').onclick = async () => {
   if (!S.basket.length) return toast('담은 문항이 없어요');
   const url = location.origin + location.pathname + '#set=' + S.basket.map(enc).join('.') + '&t=' + encodeURIComponent(S.settings.title || '');
@@ -852,7 +855,7 @@ function segBind(sel, get, set){
 segBind('#stExam', () => stExam, v => stExam = v);
 segBind('#stScore', () => stScore, v => stScore = v);
 function renderStats(){
-  const pool = Q.filter(q => (stExam === 'all' || (stExam === 'mock' ? q.exam > 0 : q.exam === 0)) && (stScore === 'all' || q.score === +stScore));
+  const pool = Q.filter(q => (stExam === 'all' || (stExam === 'mock' ? (q.exam === 1 || q.exam === 2) : q.exam === +stExam)) && (stScore === 'all' || q.score === +stScore));
   const cnt = new Map(); let max = 1;
   pool.forEach(q => { const k = q.unit + '_' + q.year; cnt.set(k, (cnt.get(k)||0) + 1); });
   cnt.forEach(v => max = Math.max(max, v));
@@ -877,7 +880,7 @@ function renderStats(){
   $('#legend').innerHTML = `적음 ${[1,2,3,4,5].map(i => `<i class="h${i}"></i>`).join('')} 많음`;
   $$('#heat td[data-u]').forEach(td => td.onclick = () => {
     F = F0(); F.units = [+td.dataset.u]; F.yFrom = F.yTo = +td.dataset.y;
-    if (stExam === '0') F.exams = [0]; if (stExam === 'mock') F.exams = [1,2];
+    if (stExam === '0') F.exams = [0]; if (stExam === 'mock') F.exams = [1,2]; if (stExam === '3') F.exams = [3];
     if (stScore === '4') F.scores = [4];
     showTab('browse'); changed();
   });
