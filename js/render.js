@@ -89,7 +89,7 @@ window.makePdf = async function(sheet, title, onProgress){
   try { await document.fonts.ready; } catch (e) {}
   const pages = [...sheet.querySelectorAll('.page')];
   const doc = new window.jspdf.jsPDF({unit: 'mm', format: 'a4', orientation: 'portrait', compress: true});
-  doc.setProperties({title, creator: '수학 기출 문제은행'});
+  doc.setProperties({title, creator: '기출각'});
   if (onProgress) onProgress(0, pages.length);
   await breathe();
   for (const [i, page] of pages.entries()) {
