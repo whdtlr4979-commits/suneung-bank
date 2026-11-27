@@ -20,6 +20,7 @@
 ## 구성
 - `index.html`, `css/style.css`, `js/app.js`: 화면과 기능 (빌드 과정 없음)
 - `js/data.js`: 문항 목록 (연도, 시험, 유형, 번호, 배점, 단원, 번호 위치, 검색용 본문, 정답). 정답은 각 기관 정답표(평가원은 홀수형) 기준입니다.
+- `js/inapp.js`: 카카오톡 · 라인 · 네이버 등 앱 안의 브라우저로 열리면 휴대폰 기본 브라우저로 다시 열기 (안 되면 안내)
 - `js/study.js`: 공부하기(오늘의 문제 · 무작위 연습 · 실전 모의고사 · 복습)와 풀이 화면
 - `js/render.js`: 미리보기를 그대로 그려 PDF 만들기
 - `js/vendor/jspdf.umd.min.js`: [jsPDF](https://github.com/parallax/jsPDF) 2.5.1 (MIT, `js/vendor/jspdf-LICENSE.txt`)
